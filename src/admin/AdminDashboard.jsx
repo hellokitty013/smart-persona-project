@@ -10,107 +10,110 @@ export default function AdminDashboard() {
   const [stats, setStats] = React.useState({ totalUsers: 0, regularUsers: 0, totalAdmins: 0, totalProfiles: 0 })
 
   useEffect(() => {
-    const users = getUsers()
-    const admins = users.filter(u => u.role === 'admin')
-    const regular = users.filter(u => u.role !== 'admin')
-    const personalProfiles = getAllProfiles()
+    const fetchStats = async () => {
+      const users = await getUsers()
+      const admins = users.filter(u => u.role === 'admin')
+      const regular = users.filter(u => u.role !== 'admin')
+      const personalProfiles = getAllProfiles()
 
-    setStats({
-      totalUsers: users.length,
-      regularUsers: regular.length,
-      totalAdmins: admins.length,
-      totalProfiles: personalProfiles.length
-    })
+      setStats({
+        totalUsers: users.length,
+        regularUsers: regular.length,
+        totalAdmins: admins.length,
+        totalProfiles: personalProfiles.length
+      })
 
-    // Calculate Profile Types for Chart
-    const profileTypes = {
-      personal: personalProfiles.filter(p => p.type === 'personal').length,
-      vtree: personalProfiles.filter(p => p.type === 'vtree').length,
-      resume: personalProfiles.filter(p => p.type === 'resume').length
-    }
+      // Calculate Profile Types for Chart
+      const profileTypes = {
+        personal: personalProfiles.filter(p => p.type === 'personal').length,
+        vtree: personalProfiles.filter(p => p.type === 'vtree').length,
+        resume: personalProfiles.filter(p => p.type === 'resume').length
+      }
 
-    // Load Chart.js and initialize charts
-    const loadCharts = async () => {
-      if (typeof Chart === 'undefined') {
-        const script = document.createElement('script')
-        script.src = 'https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js'
-        script.async = true
-        script.onload = () => {
+      // Load Chart.js and initialize charts
+      const loadCharts = async () => {
+        if (typeof Chart === 'undefined') {
+          const script = document.createElement('script')
+          script.src = 'https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js'
+          script.async = true
+          script.onload = () => {
+            initCharts(profileTypes, users)
+          }
+          document.body.appendChild(script)
+        } else {
           initCharts(profileTypes, users)
         }
-        document.body.appendChild(script)
-      } else {
-        initCharts(profileTypes, users)
       }
-    }
 
-    const initCharts = (types, allUsers) => {
-      // 1. New Users Line Chart
-      const lineCtx = document.getElementById('lineChart')
-      if (lineCtx && window.Chart) {
-        const existingChart = window.Chart.getChart(lineCtx)
-        if (existingChart) existingChart.destroy()
+      const initCharts = (types, allUsers) => {
+        // 1. New Users Line Chart
+        const lineCtx = document.getElementById('lineChart')
+        if (lineCtx && window.Chart) {
+          const existingChart = window.Chart.getChart(lineCtx)
+          if (existingChart) existingChart.destroy()
 
-        // Prepare data: Last 7 days
-        const labels = []
-        const data = []
-        for (let i = 6; i >= 0; i--) {
-          const d = new Date()
-          d.setDate(d.getDate() - i)
-          const dateStr = d.toISOString().split('T')[0]
-          labels.push(dateStr)
-          const count = allUsers.filter(u => u.createdAt && u.createdAt.startsWith(dateStr)).length
-          data.push(count)
-        }
-
-        if (data.every(d => d === 0) && allUsers.length > 0) {
-          data[6] = 1 // Today
-          data[4] = 1
-        }
-
-        new window.Chart(lineCtx, {
-          type: 'line',
-          data: {
-            labels: labels,
-            datasets: [{
-              label: 'New Users',
-              data: data,
-              borderColor: 'rgb(75, 192, 192)',
-              tension: 0.1,
-              fill: false
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+          // Prepare data: Last 7 days
+          const labels = []
+          const data = []
+          for (let i = 6; i >= 0; i--) {
+            const d = new Date()
+            d.setDate(d.getDate() - i)
+            const dateStr = d.toISOString().split('T')[0]
+            labels.push(dateStr)
+            const count = allUsers.filter(u => u.createdAt && u.createdAt.startsWith(dateStr)).length
+            data.push(count)
           }
-        })
-      }
-      // Profile Types Pie Chart
-      const areaCtx = document.getElementById('areaChart')
-      if (areaCtx && window.Chart) {
-        const existingChart = window.Chart.getChart(areaCtx)
-        if (existingChart) existingChart.destroy()
 
-        new window.Chart(areaCtx, {
-          type: 'pie',
-          data: {
-            labels: ['Personal', 'VTree', 'Resume'],
-            datasets: [{
-              data: [types.personal, types.vtree, types.resume],
-              backgroundColor: ['#007bff', '#28a745', '#ffc107'],
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
+          if (data.every(d => d === 0) && allUsers.length > 0) {
+            data[6] = 1 // Today
+            data[4] = 1
           }
-        })
-      }
-    }
 
-    loadCharts()
+          new window.Chart(lineCtx, {
+            type: 'line',
+            data: {
+              labels: labels,
+              datasets: [{
+                label: 'New Users',
+                data: data,
+                borderColor: 'rgb(75, 192, 192)',
+                tension: 0.1,
+                fill: false
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+            }
+          })
+        }
+        // Profile Types Pie Chart
+        const areaCtx = document.getElementById('areaChart')
+        if (areaCtx && window.Chart) {
+          const existingChart = window.Chart.getChart(areaCtx)
+          if (existingChart) existingChart.destroy()
+
+          new window.Chart(areaCtx, {
+            type: 'pie',
+            data: {
+              labels: ['Personal', 'VTree', 'Resume'],
+              datasets: [{
+                data: [types.personal, types.vtree, types.resume],
+                backgroundColor: ['#007bff', '#28a745', '#ffc107'],
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+            }
+          })
+        }
+      }
+
+      loadCharts()
+    }
+    fetchStats()
   }, [])
 
   const handleLogout = () => {

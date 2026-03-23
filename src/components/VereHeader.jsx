@@ -37,9 +37,9 @@ function VereHeader() {
     } catch (e) {}
   }, [])
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    const res = login(identifier, password)
+    const res = await login(identifier, password)
     if (!res.ok) {
       alert(res.message || 'Login failed')
       return

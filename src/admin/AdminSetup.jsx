@@ -10,19 +10,19 @@ export default function AdminSetup() {
   const [error, setError] = useState('')
   const navigate = useNavigate()
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
     setMessage('')
-    const res = registerUser({ username, email, password })
+    const res = await registerUser({ username, email, password })
     if (!res.ok) {
       // If user exists, try to promote and login
-      const users = getUsers()
+      const users = await getUsers()
       const found = users.find(u => u.username === username || u.email === email)
       if (found) {
-        promoteUserToAdmin(found.username)
+        await promoteUserToAdmin(found.username)
         // Re-fetch users to get updated role
-        const updatedUsers = getUsers()
+        const updatedUsers = await getUsers()
         const updatedUser = updatedUsers.find(u => u.username === found.username)
         setSession({ username: updatedUser.username, email: updatedUser.email, token: updatedUser.token, role: updatedUser.role })
         navigate('/admin')
@@ -33,13 +33,13 @@ export default function AdminSetup() {
     }
 
     // Promote to admin
-    const ok = promoteUserToAdmin(username)
+    const ok = await promoteUserToAdmin(username)
     if (!ok) {
       setError('Could not promote user to admin')
       return
     }
     // Refresh users to get updated role and set session with role
-    const updatedUsers = getUsers()
+    const updatedUsers = await getUsers()
     const newAdmin = updatedUsers.find(u => u.username === username)
     setSession({ username: newAdmin.username, email: newAdmin.email, token: newAdmin.token, role: newAdmin.role })
     setMessage('Admin user created successfully')
