@@ -17,13 +17,13 @@ export default function UserManagement() {
         setCurrentUser(getCurrentUser())
     }, [])
 
-    const loadUsers = () => {
-        setUsers(getUsers())
+    const loadUsers = async () => {
+        setUsers(await getUsers())
     }
 
-    const handleDelete = (username) => {
+    const handleDelete = async (username) => {
         if (window.confirm(`Are you sure you want to delete user ${username}?`)) {
-            if (deleteUser(username)) {
+            if (await deleteUser(username)) {
                 setMessage(`User ${username} deleted successfully`)
                 loadUsers()
             } else {
@@ -32,8 +32,8 @@ export default function UserManagement() {
         }
     }
 
-    const handlePromote = (username) => {
-        if (promoteUserToAdmin(username)) {
+    const handlePromote = async (username) => {
+        if (await promoteUserToAdmin(username)) {
             setMessage(`User ${username} promoted to admin`)
             loadUsers()
         } else {
@@ -41,8 +41,8 @@ export default function UserManagement() {
         }
     }
 
-    const handleDemote = (username) => {
-        if (demoteAdminToUser(username)) {
+    const handleDemote = async (username) => {
+        if (await demoteAdminToUser(username)) {
             setMessage(`User ${username} demoted to user`)
             loadUsers()
         } else {
@@ -50,9 +50,9 @@ export default function UserManagement() {
         }
     }
 
-    const handleResetPassword = (username) => {
+    const handleResetPassword = async (username) => {
         const newPass = 'password123'
-        const allUsers = getUsers()
+        const allUsers = await getUsers()
         const idx = allUsers.findIndex(u => u.username === username)
         if (idx !== -1) {
             allUsers[idx].password = newPass
@@ -63,15 +63,7 @@ export default function UserManagement() {
         }
     }
 
-    const handleImpersonate = (username) => {
-        if (window.confirm(`Login as ${username}? You will be redirected to their profile.`)) {
-            if (impersonateUser(username)) {
-                window.location.href = '/my-profile'
-            } else {
-                setError('Failed to impersonate user')
-            }
-        }
-    }
+
 
     const handleEditClick = (user) => {
         setEditingUser(user)
@@ -83,8 +75,8 @@ export default function UserManagement() {
         })
     }
 
-    const handleEditSave = () => {
-        if (updateUser(editingUser.username, editFormData)) {
+    const handleEditSave = async () => {
+        if (await updateUser(editingUser.username, editFormData)) {
             setMessage(`User ${editingUser.username} updated successfully`)
             setEditingUser(null)
             loadUsers()
@@ -186,13 +178,7 @@ export default function UserManagement() {
                                                         <td>
                                                             {user.username !== currentUser?.username && (
                                                                 <div className="btn-group" role="group">
-                                                                    <button
-                                                                        className="btn btn-sm btn-outline-dark"
-                                                                        onClick={() => handleImpersonate(user.username)}
-                                                                        title="Login as this user"
-                                                                    >
-                                                                        <i className="fas fa-user-secret"></i> Login As
-                                                                    </button>
+
                                                                     <button
                                                                         className="btn btn-sm btn-outline-primary"
                                                                         onClick={() => handleEditClick(user)}

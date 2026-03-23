@@ -23,11 +23,11 @@ function Signup() {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     // try register
     const { username, email, password, firstName, lastName, birthDate } = formData
-    const res = registerUser({ username, email, password, firstName, lastName, birthDate })
+    const res = await registerUser({ username, email, password, firstName, lastName, birthDate })
     if (!res.ok) {
       alert(res.message || 'Registration failed')
       return

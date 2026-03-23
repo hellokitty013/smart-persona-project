@@ -11,16 +11,17 @@ export default function AdminLogin() {
 
   const from = location.state?.from?.pathname || '/admin'
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
-    const res = login(identifier, password)
+    const res = await login(identifier, password)
     if (!res.ok) {
       setError(res.message || 'Login failed')
       return
     }
     // Only allow admins to proceed
-    if (!isAdmin()) {
+    const userIsAdmin = await isAdmin();
+    if (!userIsAdmin) {
       setError('User is not an admin')
       return
     }

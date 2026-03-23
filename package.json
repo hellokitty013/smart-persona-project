@@ -17,6 +17,7 @@
     "html2pdf.js": "^0.12.1",
     "i18next": "^25.6.3",
     "jspdf": "^3.0.4",
+    "mysql2": "^3.20.0",
     "react": "^19.1.1",
     "react-bootstrap": "^2.10.10",
     "react-dom": "^19.1.1",

@@ -8,9 +8,9 @@ function LoginModal({ show, onHide, onSwitchToSignup }) {
   const [password, setPassword] = useState('');
   const navigate = useNavigate();
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    const res = login(identifier, password);
+    const res = await login(identifier, password);
     if (!res.ok) {
       alert(res.message || 'Login failed');
       return;

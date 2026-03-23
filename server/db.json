@@ -1,0 +1,23 @@
+{
+  "users": [
+    {
+      "username": "Users",
+      "email": "aaas@gmail.com",
+      "password": "1234",
+      "firstName": "Unap",
+      "lastName": "Quri",
+      "birthDate": "2005-06-14",
+      "role": "user",
+      "token": "4ss757izkh2",
+      "createdAt": "2026-03-22T22:53:00.368Z"
+    },
+    {
+      "username": "Admin",
+      "email": "panu@gmail.com",
+      "password": "1234",
+      "role": "admin",
+      "token": "9oktswaejxj",
+      "createdAt": "2026-03-22T23:01:52.794Z"
+    }
+  ]
+}
