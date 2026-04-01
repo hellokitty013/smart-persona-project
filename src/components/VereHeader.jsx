@@ -1,7 +1,7 @@
 // 1. เราจะเปลี่ยนไปใช้ Dropdown พื้นฐาน (ไม่ใช่ NavDropdown)
 import React, { useEffect, useState } from 'react'
 import { Navbar, Container, Nav, Dropdown, Form, Button } from 'react-bootstrap';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { login, getCurrentUser, logout } from '../services/auth'
 import LoginModal from './LoginModal'
@@ -15,6 +15,8 @@ function VereHeader() {
   const [showLoginModal, setShowLoginModal] = useState(false)
   const { theme, availableThemes, setTheme } = useTheme()
   const navigate = useNavigate()
+  const location = useLocation()
+  const currentPath = location.pathname
 
   const changeLanguage = (lng) => {
     i18n.changeLanguage(lng);
@@ -23,7 +25,11 @@ function VereHeader() {
 
   useEffect(() => {
     setCurrent(getCurrentUser())
-    // If user just registered, pre-fill login fields
+    const handleAuthChange = () => setCurrent(getCurrentUser())
+    
+    window.addEventListener('authChange', handleAuthChange)
+    window.addEventListener('storage', handleAuthChange) // Sync cross-tab
+
     try {
       const raw = localStorage.getItem('lastRegistered')
       if (raw) {
@@ -35,6 +41,11 @@ function VereHeader() {
         localStorage.removeItem('lastRegistered')
       }
     } catch (e) {}
+
+    return () => {
+      window.removeEventListener('authChange', handleAuthChange)
+      window.removeEventListener('storage', handleAuthChange)
+    }
   }, [])
 
   const handleSubmit = async (e) => {
@@ -44,16 +55,16 @@ function VereHeader() {
       alert(res.message || 'Login failed')
       return
     }
-    // navigate to my profile
     navigate('/my-profile')
-    // update state
     setCurrent({ username: res.user.username, email: res.user.email })
+    window.dispatchEvent(new Event('authChange'))
   }
 
-  const handleLogout = () => {
-    logout()
+  const handleLogout = async () => {
+    await logout()
     setCurrent(null)
     navigate('/')
+    window.dispatchEvent(new Event('authChange'))
   }
 
   const handleDashboardClick = (e) => {
@@ -74,117 +85,104 @@ function VereHeader() {
 
   return (
     <>
-    {/* Layout 3 ส่วน (flex: 1) ยังคงอยู่เหมือนเดิม เพื่อ "ล็อค" โลโก้ไว้ */}
-    <Navbar bg="light" expand={false} className="shadow sticky-top">
-      <Container fluid className="d-flex justify-content-between align-items-center">
+    <Navbar bg="white" expand="lg" className="shadow-sm sticky-top py-3">
+      <Container>
+        {/* Left - Modern Logo VERE text only */}
+        <Navbar.Brand as={Link} to="/" className="fw-bolder fs-4 d-flex align-items-center gap-2" style={{ letterSpacing: '0.5px', color: '#1a1a2e' }}>
+          <span>VERE</span>
+        </Navbar.Brand>
 
-        {/* left menu */}
-        <div style={{ flex: '1 1 0' }}>
-          <Dropdown>
-            <Dropdown.Toggle as={Nav.Link} className="p-0" id="main-menu-toggle">
-              <i className="bi bi-list fs-4"></i>
-            </Dropdown.Toggle>
-            <Dropdown.Menu>
-              <Dropdown.Item onClick={handleDashboardClick}>Dashboard</Dropdown.Item>
-              <Dropdown.Item href="/about">About</Dropdown.Item>
-            </Dropdown.Menu>
-          </Dropdown>
-        </div>
-        {/* right */}
-        <div style={{ flex: '1 1 0' }} className="d-flex justify-content-end align-items-center gap-2">
-          {/* Theme Switcher */}
-          <Dropdown align="end">
-            <Dropdown.Toggle 
-              variant="link"
-              className="text-decoration-none p-0 border-0 theme-toggle"
-              aria-label="Switch theme"
-              style={{ boxShadow: 'none' }}
-            >
-              <i className={`bi ${themeIcon} fs-5`}></i>
-            </Dropdown.Toggle>
-            <Dropdown.Menu>
-              {availableThemes.map((option) => (
-                <Dropdown.Item
-                  key={option.id}
-                  active={option.id === theme}
-                  onClick={() => setTheme(option.id)}
-                >
-                  <i className={`bi ${option.icon} me-2`}></i>
-                  {option.label}
-                </Dropdown.Item>
-              ))}
-            </Dropdown.Menu>
-          </Dropdown>
-          {/* Language Switcher */}
-          <Dropdown align="end">
-            <Dropdown.Toggle 
-              variant="link" 
-              className="text-decoration-none text-dark p-0 border-0"
-              style={{ boxShadow: 'none' }}
-            >
-              <i className="bi bi-translate fs-5"></i>
-            </Dropdown.Toggle>
-            <Dropdown.Menu>
-              <Dropdown.Item 
-                onClick={() => changeLanguage('en')}
-                active={i18n.language === 'en'}
-              >
-                🇺🇸 English
-              </Dropdown.Item>
-              <Dropdown.Item 
-                onClick={() => changeLanguage('th')}
-                active={i18n.language === 'th'}
-              >
-                🇹🇭 ไทย
-              </Dropdown.Item>
-            </Dropdown.Menu>
-          </Dropdown>
+        <Navbar.Toggle aria-controls="basic-navbar-nav" className="border-0 shadow-none" />
+        
+        <Navbar.Collapse id="basic-navbar-nav">
+          {/* Centered / Right Aligned Nav Links dynamically styled based on the current page */}
+          <Nav className="ms-auto align-items-center gap-1 gap-lg-3">
+            
+            {(() => {
+              const renderNavLink = (to, pathMatch, label, onClick = null) => {
+                const active = pathMatch === '/' ? currentPath === '/' : currentPath.startsWith(pathMatch);
+                
+                if (active) {
+                  return (
+                    <Nav.Link as={to ? Link : "span"} to={to} onClick={onClick} className="px-4 py-2 rounded-pill fw-bold" style={{ backgroundColor: 'rgba(107, 95, 255, 0.1)', color: '#6b5fff', fontSize: '0.95rem', cursor: 'pointer' }}>
+                      {label}
+                    </Nav.Link>
+                  );
+                }
+                
+                return (
+                  <Nav.Link as={to ? Link : "span"} to={to} onClick={onClick} className="fw-bold px-3" style={{ color: '#6c757d', fontSize: '0.95rem', transition: 'color 0.2s', cursor: 'pointer' }} onMouseEnter={(e) => e.target.style.color = '#1a1a2e'} onMouseLeave={(e) => e.target.style.color = '#6c757d'}>
+                    {label}
+                  </Nav.Link>
+                );
+              };
 
-          {/* Profile Menu */}
-          <Dropdown align="end">
-            <Dropdown.Toggle as={Nav.Link} className="p-0" id="profile-menu-toggle">
-              <i className="bi bi-person fs-4"></i>
-            </Dropdown.Toggle>
-            <Dropdown.Menu>
-              {!current && (
+              return (
                 <>
-                  <Dropdown.Item as={Link} to="/create-account" className='text-center '>
-                    <Button className='btn-secondary fw-bold'>{t('get_started')}</Button>
-                  </Dropdown.Item>
-                  <Dropdown.Divider />
-                  <div className="p-3" style={{ minWidth: '250px' }}>
-                    <p className="fw-bold text-center mb-2">{t('login')}</p>
-                    <Form onSubmit={handleSubmit}>
-                      <Form.Group className="mb-2">
-                        <Form.Control value={identifier} onChange={e=>setIdentifier(e.target.value)} type="text" placeholder="Username or email" size="sm" />
-                      </Form.Group>
-                      <Form.Group className="mb-3">
-                        <Form.Control value={password} onChange={e=>setPassword(e.target.value)} type="password" placeholder="Password" size="sm" />
-                      </Form.Group>
-                      <Button variant="secondary" type="submit" className="w-100 btn-sm">{t('login')}</Button>
-                    </Form>
-                  </div>
+                  {renderNavLink("/", "/", "หน้าแรก")}
+                  {renderNavLink(null, "/my-profile", "สร้างโปรไฟล์", handleDashboardClick)}
                 </>
-              )}
+              );
+            })()}
 
-              {current && (
-                <div className="p-2" style={{ minWidth: '200px' }}>
-                  <div className="mb-2 text-center">Signed in as <strong>{current.username}</strong></div>
-                  <div className="d-grid">
-                    <Button variant="secondary" size="sm" onClick={handleLogout}>{t('logout')}</Button>
-                  </div>
+            {/* Language Switcher */}
+            <Dropdown align="end" className="nav-item ms-lg-2">
+              <Dropdown.Toggle as={Nav.Link} className="text-secondary border-0 bg-transparent p-2" style={{ transition: 'color 0.2s', cursor: 'pointer' }} onMouseEnter={(e) => e.target.style.color = '#1a1a2e'} onMouseLeave={(e) => e.target.style.color = '#6c757d'}>
+                <div className="d-flex align-items-center gap-1 fw-bold" style={{ fontSize: '0.85rem' }}>
+                  <i className="bi bi-globe"></i> <span>{i18n.language === 'en' ? 'EN' : 'TH'}</span>
                 </div>
-              )}
+              </Dropdown.Toggle>
+              <Dropdown.Menu className="border-0 shadow-lg rounded-4 mt-2" style={{ minWidth: '120px' }}>
+                <Dropdown.Item onClick={() => changeLanguage('th')} active={i18n.language === 'th'} className="py-2" style={{ fontSize: '0.9rem' }}>🇹🇭 ภาษาไทย</Dropdown.Item>
+                <Dropdown.Item onClick={() => changeLanguage('en')} active={i18n.language === 'en'} className="py-2" style={{ fontSize: '0.9rem' }}>🇺🇸 English</Dropdown.Item>
+              </Dropdown.Menu>
+            </Dropdown>
 
-            </Dropdown.Menu>
-          </Dropdown>
-        </div>
-
+            {/* Auth section corresponding to "สมัครสมาชิก" */}
+            {!current ? (
+              (() => {
+                const active = currentPath.startsWith('/signup');
+                if (active) {
+                  return (
+                    <Nav.Link as={Link} to="/signup" className="ms-lg-2 px-4 py-2 rounded-pill fw-bold" style={{ backgroundColor: 'rgba(107, 95, 255, 0.1)', color: '#6b5fff', fontSize: '0.95rem' }}>
+                      สมัครสมาชิก
+                    </Nav.Link>
+                  );
+                }
+                return (
+                  <Nav.Link as={Link} to="/signup" className="fw-bold ms-lg-2 px-3" style={{ color: '#6c757d', fontSize: '0.95rem', transition: 'color 0.2s' }} onMouseEnter={(e) => e.target.style.color = '#1a1a2e'} onMouseLeave={(e) => e.target.style.color = '#6c757d'}>
+                    สมัครสมาชิก
+                  </Nav.Link>
+                );
+              })()
+            ) : (
+              <Dropdown align="end" className="ms-lg-2">
+                <Dropdown.Toggle bsPrefix="a" className="nav-link border-0 bg-transparent p-0 d-flex align-items-center" style={{ cursor: 'pointer' }}>
+                  <div className="rounded-circle d-flex align-items-center justify-content-center text-white" style={{ width: '38px', height: '38px', backgroundColor: '#6b5fff', transition: 'transform 0.2s', boxShadow: '0 4px 10px rgba(107, 95, 255, 0.3)' }} onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}>
+                    <i className="bi bi-person-fill fs-5"></i>
+                  </div>
+                </Dropdown.Toggle>
+                <Dropdown.Menu className="border-0 shadow-lg rounded-4 mt-3 p-3" style={{ minWidth: '220px' }}>
+                  <div className="text-center mb-3">
+                    <small className="text-muted d-block mb-1">Signed in as</small>
+                    <strong className="d-block text-dark fs-6">{current.username}</strong>
+                  </div>
+                  <Dropdown.Divider />
+                  <Button variant="light" className="w-100 text-danger fw-bold rounded-pill mt-2" onClick={handleLogout}>
+                    <i className="bi bi-box-arrow-right me-2"></i> ออกจากระบบ
+                  </Button>
+                </Dropdown.Menu>
+              </Dropdown>
+            )}
+          </Nav>
+        </Navbar.Collapse>
       </Container>
     </Navbar>
+
     {showLoginModal && (
       <LoginModal 
-        onClose={() => setShowLoginModal(false)}
+        show={showLoginModal}
+        onHide={() => setShowLoginModal(false)}
         onSwitchToSignup={() => {
           setShowLoginModal(false)
           navigate('/signup')

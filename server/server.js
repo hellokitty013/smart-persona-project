@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
-const mysql = require('mysql2/promise');
+const fs = require('fs/promises');
+const path = require('path');
 const swaggerUi = require('swagger-ui-express');
 const swaggerJsdoc = require('swagger-jsdoc');
 
@@ -8,16 +9,27 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Database connection Setup
-const pool = mysql.createPool({
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'admin',
-  password: process.env.DB_PASSWORD || 'admin',
-  database: process.env.DB_NAME || 'jwt',
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
-});
+const dbPath = path.join(__dirname, 'db.json');
+
+// Helper to read DB
+const readDb = async () => {
+  try {
+    const data = await fs.readFile(dbPath, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      const initialData = { users: [] };
+      await fs.writeFile(dbPath, JSON.stringify(initialData, null, 2));
+      return initialData;
+    }
+    throw error;
+  }
+};
+
+// Helper to write DB
+const writeDb = async (data) => {
+  await fs.writeFile(dbPath, JSON.stringify(data, null, 2));
+};
 
 // Swagger Configuration
 const swaggerOptions = {
@@ -85,32 +97,34 @@ app.post('/api/auth/register', async (req, res) => {
   }
 
   try {
-    // Note: To use email/firstName/lastName/birthDate fully, ensure your 'users' table has these columns.
-    // If not, it will only insert what is defined in the initial jwt.sql script.
-    // This script tries to support the frontend requirements based on existing mock logic.
-    const [existing] = await pool.execute(
-      'SELECT * FROM users WHERE username = ?',
-      [username]
-    );
-
-    if (existing.length > 0) {
-      return res.status(400).json({ ok: false, message: 'Username already taken' });
+    const db = await readDb();
+    
+    // Check if user exists
+    const existingUser = db.users.find(u => u.username === username || u.email === email);
+    if (existingUser) {
+      return res.status(400).json({ ok: false, message: 'Username or email already taken' });
     }
 
-    // Attempt to ensure role 1 exists
-    await pool.query('INSERT IGNORE INTO roles (id, name) VALUES (1, "user")');
-
-    const role_id = 1;
     const token = Math.random().toString(36).slice(2);
+    const newUser = {
+      id: Date.now(),
+      username,
+      email,
+      password,
+      firstName: firstName || null,
+      lastName: lastName || null,
+      birthDate: birthDate || null,
+      role: 'user', // Default role for local JSON
+      token,
+      createdAt: new Date().toISOString()
+    };
 
-    // Note: Since jwt.sql is updated, we can insert all fields now
-    const [result] = await pool.execute(
-      'INSERT INTO users (username, email, password, firstName, lastName, birthDate, token, role_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [username, email, password, firstName || null, lastName || null, birthDate || null, token, role_id]
-    );
+    db.users.push(newUser);
+    await writeDb(db);
 
-    const newUser = { id: result.insertId, username, role_id, token, email, firstName, lastName, birthDate };
-    res.status(201).json({ ok: true, user: newUser });
+    // Don't send password back in response
+    const { password: _, ...userWithoutPassword } = newUser;
+    res.status(201).json({ ok: true, user: userWithoutPassword });
   } catch (error) {
     console.error('Registration Error:', error);
     res.status(500).json({ ok: false, message: 'Server error during registration' });
@@ -155,16 +169,15 @@ app.post('/api/auth/login', async (req, res) => {
   }
 
   try {
-    const [rows] = await pool.execute(
-      'SELECT * FROM users WHERE username = ? AND password = ?',
-      [identifier, password]
-    );
+    const db = await readDb();
+    const user = db.users.find(u => (u.username === identifier || u.email === identifier) && u.password === password);
 
-    if (rows.length === 0) {
+    if (!user) {
       return res.status(401).json({ ok: false, message: 'Invalid username/email or password' });
     }
 
-    res.status(200).json({ ok: true, user: rows[0] });
+    const { password: _, ...userWithoutPassword } = user;
+    res.status(200).json({ ok: true, user: userWithoutPassword });
   } catch (error) {
     console.error('Login Error:', error);
     res.status(500).json({ ok: false, message: 'Server error' });
@@ -185,8 +198,10 @@ app.post('/api/auth/login', async (req, res) => {
  */
 app.get('/api/users', async (req, res) => {
   try {
-    const [rows] = await pool.execute('SELECT * FROM users');
-    res.status(200).json(rows);
+    const db = await readDb();
+    // Exclude passwords
+    const users = db.users.map(({ password, ...user }) => user);
+    res.status(200).json(users);
   } catch (error) {
     console.error('Fetch Users Error:', error);
     res.status(500).json({ ok: false, message: 'Server error' });
@@ -228,38 +243,28 @@ app.put('/api/users/:username', async (req, res) => {
   }
 
   try {
-    const [existing] = await pool.execute('SELECT * FROM users WHERE username = ?', [username]);
-    if (existing.length === 0) {
+    const db = await readDb();
+    const userIndex = db.users.findIndex(u => u.username === username);
+    
+    if (userIndex === -1) {
       return res.status(404).json({ ok: false, message: 'User not found' });
     }
 
-    // Construct dynamic update query (assuming columns match updates keys)
-    const validUpdates = {};
+    // Apply updates (exclude id and username)
+    db.users[userIndex] = { ...db.users[userIndex] };
     for (const key in updates) {
-       if (updates[key] !== undefined && key !== 'id' && key !== 'username') validUpdates[key] = updates[key];
+      if (updates[key] !== undefined && key !== 'id' && key !== 'username') {
+        db.users[userIndex][key] = updates[key];
+      }
     }
+
+    await writeDb(db);
     
-    if (Object.keys(validUpdates).length === 0) {
-      return res.status(200).json({ ok: true, user: existing[0] });
-    }
-
-    const setClauses = [];
-    const values = [];
-    for (const [key, value] of Object.entries(validUpdates)) {
-      setClauses.push(`${key} = ?`);
-      values.push(value);
-    }
-    values.push(username);
-
-    const query = `UPDATE users SET ${setClauses.join(', ')} WHERE username = ?`;
-    await pool.execute(query, values);
-
-    const [updated] = await pool.execute('SELECT * FROM users WHERE username = ?', [username]);
-    res.status(200).json({ ok: true, user: updated[0] });
-
+    const { password: _, ...userWithoutPassword } = db.users[userIndex];
+    res.status(200).json({ ok: true, user: userWithoutPassword });
   } catch (error) {
     console.error('Update User Error:', error);
-    res.status(500).json({ ok: false, message: 'Server error or invalid column names' });
+    res.status(500).json({ ok: false, message: 'Server error' });
   }
 });
 
@@ -287,12 +292,15 @@ app.delete('/api/users/:username', async (req, res) => {
   const username = req.params.username;
   
   try {
-    const [result] = await pool.execute('DELETE FROM users WHERE username = ?', [username]);
+    const db = await readDb();
+    const initialLength = db.users.length;
+    db.users = db.users.filter(u => u.username !== username);
     
-    if (result.affectedRows === 0) {
+    if (db.users.length === initialLength) {
       return res.status(404).json({ ok: false, message: 'User not found' });
     }
     
+    await writeDb(db);
     res.status(200).json({ ok: true, message: 'User deleted' });
   } catch (error) {
     console.error('Delete User Error:', error);
@@ -302,6 +310,6 @@ app.delete('/api/users/:username', async (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT} (Using Local JSON Database)`);
   console.log(`Swagger docs available at http://localhost:${PORT}/api-docs`);
 });

@@ -1,3 +1,4 @@
+import { supabase } from '../supabaseClient'; 
 const API_URL = 'http://localhost:5000/api';
 
 const CURRENT_USER_KEY = 'spa_current_user';
@@ -28,8 +29,9 @@ export function setSession(u) {
   writeJSON(CURRENT_USER_KEY, u);
 }
 
-export function logout() {
+export async function logout() {
   try {
+    await supabase.auth.signOut();
     localStorage.removeItem(CURRENT_USER_KEY);
     localStorage.removeItem(PROFILE_KEY);
     localStorage.removeItem('socialLinks');
@@ -48,37 +50,71 @@ export async function getUsers() {
 
 export async function registerUser({ username, email, password, firstName, lastName, birthDate }) {
   try {
-    const res = await fetch(`${API_URL}/auth/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, email, password, firstName, lastName, birthDate })
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          username,
+          firstName,
+          lastName,
+          birthDate
+        }
+      }
     });
-    const data = await res.json();
-    if (data.ok) {
-      setSession({ username: data.user.username, email: data.user.email, token: data.user.token });
-      writeJSON(PROFILE_KEY, { username: data.user.username, firstName, lastName, email, description: '', avatar: '', bgColor: '#050505', nameColor: '#ffffff' });
+
+    if (error) return { ok: false, message: error.message };
+
+    const user = data.user;
+    if (user) {
+      setSession({ username, email: user.email, token: user.aud });
+      writeJSON(PROFILE_KEY, { 
+        username, 
+        firstName, 
+        lastName, 
+        email: user.email, 
+        description: '', 
+        avatar: '', 
+        bgColor: '#050505', 
+        nameColor: '#ffffff' 
+      });
+      return { ok: true, user: { username, email: user.email } };
     }
-    return data;
+    return { ok: false, message: 'Registration failed or requires email confirmation' };
   } catch (e) {
-    return { ok: false, message: 'Server Error connecting to backend API' };
+    return { ok: false, message: 'Supabase Connection Error' };
   }
 }
 
 export async function login(identifier, password) {
   try {
-    const res = await fetch(`${API_URL}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ identifier, password })
+    // Supabase Auth typically uses email. If identifier is a username, 
+    // you might need a public 'users' table to resolve email from username.
+    // For now, assuming identifier is email.
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: identifier,
+      password: password,
     });
-    const data = await res.json();
-    if (data.ok) {
-      setSession({ username: data.user.username, email: data.user.email, token: data.user.token });
-      writeJSON(PROFILE_KEY, { username: data.user.username, firstName: data.user.firstName || '', lastName: data.user.lastName || '', email: data.user.email, description: '', avatar: '' });
+
+    if (error) return { ok: false, message: error.message };
+
+    const user = data.user;
+    if (user) {
+      const username = user.user_metadata?.username || user.email.split('@')[0];
+      setSession({ username, email: user.email, token: user.aud });
+      writeJSON(PROFILE_KEY, { 
+        username, 
+        firstName: user.user_metadata?.firstName || '', 
+        lastName: user.user_metadata?.lastName || '', 
+        email: user.email, 
+        description: '', 
+        avatar: '' 
+      });
+      return { ok: true, user: { username, email: user.email } };
     }
-    return data;
+    return { ok: false, message: 'Login failed' };
   } catch (e) {
-    return { ok: false, message: 'Server Error connecting to backend API' };
+    return { ok: false, message: 'Supabase Connection Error' };
   }
 }
 

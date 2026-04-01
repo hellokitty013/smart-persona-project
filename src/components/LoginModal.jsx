@@ -16,7 +16,8 @@ function LoginModal({ show, onHide, onSwitchToSignup }) {
       return;
     }
     // Login สำเร็จ -> ปิด modal และไปหน้า my profile
-    onHide();
+    window.dispatchEvent(new Event('authChange'));
+    if (onHide) onHide();
     navigate('/my-profile');
   };
 
