@@ -14,7 +14,7 @@ export default function AdminDashboard() {
       const users = await getUsers()
       const admins = users.filter(u => u.role === 'admin')
       const regular = users.filter(u => u.role !== 'admin')
-      const personalProfiles = getAllProfiles()
+      const personalProfiles = await getAllProfiles()
 
       setStats({
         totalUsers: users.length,

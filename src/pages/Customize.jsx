@@ -274,12 +274,12 @@ const Customize = () => {
         const loadProfile = async () => {
             try {
                 // Load all profiles
-                const allProfiles = getAllProfiles()
+                const allProfiles = await getAllProfiles()
                 setProfiles(allProfiles)
                 
                 // Get active profile
                 const activeId = getActiveProfileId()
-                const activeProfile = getActiveProfile()
+                const activeProfile = await getActiveProfile()
                 
                 if (activeProfile) {
                     setCurrentProfileId(activeId)
@@ -473,7 +473,7 @@ const Customize = () => {
                 themeTokens
             }
             
-            updateProfile(currentProfileId, updates)
+            await updateProfile(currentProfileId, updates)
             alert('Profile saved successfully!')
         } catch (err) {
             if (err.name === 'QuotaExceededError') {

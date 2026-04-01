@@ -60,6 +60,7 @@ function MyProfile() {
   const navigate = useNavigate();
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [profile, setProfile] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [analytics, setAnalytics] = useState(null);
   const [showFullAbout, setShowFullAbout] = useState(false);
   const [profileId, setProfileId] = useState(null);
@@ -144,33 +145,39 @@ function MyProfile() {
     }
   }, [profile?.username]);
 
-  const loadProfile = () => {
+  const loadProfile = async () => {
     const currentUser = getCurrentUser();
     if (!currentUser) {
       navigate('/login');
       return;
     }
 
-    // Get or create professional profile for current user
-    let professionalProfile = getCurrentUserProfessionalProfile();
-    if (!professionalProfile) {
-      professionalProfile = createProfessionalProfile(currentUser.username);
-    }
+    try {
+      // Get or create professional profile for current user
+      let professionalProfile = await getCurrentUserProfessionalProfile();
+      if (!professionalProfile) {
+        professionalProfile = await createProfessionalProfile(currentUser.username);
+      }
 
-    if (professionalProfile) {
-      setProfileId(professionalProfile.id);
-      setProfileFromRecord(professionalProfile);
-      setContactForm({
-        email: professionalProfile.data.contact?.email || '',
-        phone: professionalProfile.data.contact?.phone || '',
-        address: professionalProfile.data.contact?.address || '',
-        tagline: professionalProfile.data.tagline || '',
-        links: normalizeContactLinks(professionalProfile.data.contact?.links || [])
-      });
-      
-      // Get analytics
-      const analyticsData = getProfileAnalytics(professionalProfile.id);
-      setAnalytics(analyticsData);
+      if (professionalProfile) {
+        setProfileId(professionalProfile.id);
+        setProfileFromRecord(professionalProfile);
+        setContactForm({
+          email: professionalProfile.data.contact?.email || '',
+          phone: professionalProfile.data.contact?.phone || '',
+          address: professionalProfile.data.contact?.address || '',
+          tagline: professionalProfile.data.tagline || '',
+          links: normalizeContactLinks(professionalProfile.data.contact?.links || [])
+        });
+
+        // Get analytics
+        const analyticsData = await getProfileAnalytics(professionalProfile.id);
+        setAnalytics(analyticsData);
+      }
+    } catch (err) {
+      console.error('Failed to load professional profile', err);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -186,17 +193,17 @@ function MyProfile() {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
       const dataUrl = reader.result;
       if (type === 'avatar') {
         setProfile(prev => ({ ...prev, avatar: dataUrl }));
         if (profileId) {
-          updateProfessionalProfile(profileId, { avatar: dataUrl });
+          await updateProfessionalProfile(profileId, { avatar: dataUrl });
         }
       } else if (type === 'cover') {
         setProfile(prev => ({ ...prev, bgImage: dataUrl }));
         if (profileId) {
-          updateProfessionalProfile(profileId, { bgImage: dataUrl });
+          await updateProfessionalProfile(profileId, { bgImage: dataUrl });
         }
       }
     };
@@ -231,7 +238,7 @@ function MyProfile() {
     setShowSharePanel(true);
   };
 
-  const handleVisibilityChange = (makePublic) => {
+  const handleVisibilityChange = async (makePublic) => {
     if (!profileId || !profile || isUpdatingVisibility) return;
     const nextValue = !!makePublic;
     if ((profile.isPublic !== false) === nextValue) return;
@@ -242,23 +249,23 @@ function MyProfile() {
     }
 
     setIsUpdatingVisibility(true);
-    const updated = updateProfessionalProfile(profileId, { isPublic: nextValue });
+    const updated = await updateProfessionalProfile(profileId, { isPublic: nextValue });
     if (updated) {
       setProfileFromRecord(updated);
     }
     setIsUpdatingVisibility(false);
   };
 
-  const handleViewModeChange = (modeId) => {
+  const handleViewModeChange = async (modeId) => {
     if (!profileId || !modeId) return;
     if (activeViewMode === modeId) return;
-    const updated = updateProfessionalProfile(profileId, { viewMode: modeId });
+    const updated = await updateProfessionalProfile(profileId, { viewMode: modeId });
     if (updated) {
       setProfileFromRecord(updated);
     }
   };
 
-  const handleApplyPreset = (preset) => {
+  const handleApplyPreset = async (preset) => {
     if (!profileId || !preset) return;
     const updates = {
       profilePreset: preset.id,
@@ -271,7 +278,7 @@ function MyProfile() {
     if (!profile?.description) {
       updates.description = preset.defaultDescription;
     }
-    const updated = updateProfessionalProfile(profileId, updates);
+    const updated = await updateProfessionalProfile(profileId, updates);
     if (updated) {
       setProfileFromRecord(updated);
       if (updates.tagline) {
@@ -365,7 +372,7 @@ function MyProfile() {
     setSocialStatus({ loading: false, error: '' });
   };
 
-  const handleApplySocialPreview = () => {
+  const handleApplySocialPreview = async () => {
     if (!profileId || !socialPreview) return;
     const mergedExperience = uniqueMergeList(socialPreview.experience, profile.experience, (item = {}) => `${item.company}-${item.position}-${item.startDate}`);
     const mergedEducation = uniqueMergeList(socialPreview.education, profile.education, (item = {}) => `${item.school}-${item.degree}`);
@@ -387,7 +394,7 @@ function MyProfile() {
         links: mergedLinks
       }
     };
-    const updated = updateProfessionalProfile(profileId, updates);
+    const updated = await updateProfessionalProfile(profileId, updates);
     if (updated) {
       setProfileFromRecord(updated);
       setContactForm({
@@ -425,7 +432,7 @@ function MyProfile() {
     }
   };
 
-  const handleApplyAIDraft = () => {
+  const handleApplyAIDraft = async () => {
     if (!profileId || !aiDraft) return;
     const mergedSkills = Array.from(new Set([...(aiDraft.skills || []), ...(profile.skills || [])]));
     const mergedExperience = uniqueMergeList(aiDraft.experience, profile.experience, (item = {}) => `${item.company}-${item.position}-${item.startDate}`);
@@ -440,7 +447,7 @@ function MyProfile() {
       featuredItems: mergedHighlights,
       recentActivity: uniqueMergeList(aiDraft.recentActivity, profile.recentActivity || [], (item = {}) => `${item.title}-${item.timestamp}`)
     };
-    const updated = updateProfessionalProfile(profileId, updates);
+    const updated = await updateProfessionalProfile(profileId, updates);
     if (updated) {
       setProfileFromRecord(updated);
       setAiDraft(null);
@@ -449,10 +456,10 @@ function MyProfile() {
     }
   };
 
-  const handleHighlightSubmit = (event) => {
+  const handleHighlightSubmit = async (event) => {
     event.preventDefault();
     if (!profileId) return;
-    const updated = addFeaturedItem(profileId, highlightForm);
+    const updated = await addFeaturedItem(profileId, highlightForm);
     if (updated) {
       setProfileFromRecord(updated);
       setHighlightForm(highlightInitialState);
@@ -460,10 +467,10 @@ function MyProfile() {
     }
   };
 
-  const handleActivitySubmit = (event) => {
+  const handleActivitySubmit = async (event) => {
     event.preventDefault();
     if (!profileId) return;
-    const updated = addActivityEntry(profileId, activityForm);
+    const updated = await addActivityEntry(profileId, activityForm);
     if (updated) {
       setProfileFromRecord(updated);
       setActivityForm(activityInitialState);
@@ -471,7 +478,7 @@ function MyProfile() {
     }
   };
 
-  const handleExperienceSubmit = (event) => {
+  const handleExperienceSubmit = async (event) => {
     event.preventDefault();
     if (!profileId) return;
     const payload = {
@@ -480,7 +487,7 @@ function MyProfile() {
         ? experienceForm.bullets.split('\n').map(item => item.trim()).filter(Boolean)
         : []
     };
-    const updated = addExperience(profileId, payload);
+    const updated = await addExperience(profileId, payload);
     if (updated) {
       setProfileFromRecord(updated);
       setExperienceForm(experienceInitialState);
@@ -488,10 +495,10 @@ function MyProfile() {
     }
   };
 
-  const handleEducationSubmit = (event) => {
+  const handleEducationSubmit = async (event) => {
     event.preventDefault();
     if (!profileId) return;
-    const updated = addEducation(profileId, educationForm);
+    const updated = await addEducation(profileId, educationForm);
     if (updated) {
       setProfileFromRecord(updated);
       setEducationForm(educationInitialState);
@@ -499,7 +506,7 @@ function MyProfile() {
     }
   };
 
-  const handleSkillSubmit = (event) => {
+  const handleSkillSubmit = async (event) => {
     event.preventDefault();
     if (!profileId || !skillsInput.trim()) return;
     const entries = skillsInput
@@ -508,12 +515,12 @@ function MyProfile() {
       .filter(Boolean);
 
     let updatedProfile = null;
-    entries.forEach(skill => {
-      const result = addSkill(profileId, skill);
+    for (const skill of entries) {
+      const result = await addSkill(profileId, skill);
       if (result) {
         updatedProfile = result;
       }
-    });
+    }
 
     if (updatedProfile) {
       setProfileFromRecord(updatedProfile);
@@ -522,61 +529,61 @@ function MyProfile() {
     }
   };
 
-  const handleDeleteHighlight = (itemId, fallbackIndex) => {
+  const handleDeleteHighlight = async (itemId, fallbackIndex) => {
     if (!profileId) return;
     if (typeof window !== 'undefined' && !window.confirm(t('confirm_delete_highlight', { defaultValue: 'Remove this highlight?' }))) return;
-    let updated = itemId ? removeFeaturedItem(profileId, itemId) : null;
+    let updated = itemId ? await removeFeaturedItem(profileId, itemId) : null;
     if (!updated) {
       const nextItems = (profile.featuredItems || []).filter((_, idx) => idx !== fallbackIndex);
-      updated = updateProfessionalProfile(profileId, { featuredItems: nextItems });
+      updated = await updateProfessionalProfile(profileId, { featuredItems: nextItems });
     }
     if (updated) {
       setProfileFromRecord(updated);
     }
   };
 
-  const handleDeleteActivity = (entryId, fallbackIndex) => {
+  const handleDeleteActivity = async (entryId, fallbackIndex) => {
     if (!profileId) return;
     if (typeof window !== 'undefined' && !window.confirm(t('confirm_delete_activity', { defaultValue: 'Remove this activity entry?' }))) return;
-    let updated = entryId ? removeActivityEntry(profileId, entryId) : null;
+    let updated = entryId ? await removeActivityEntry(profileId, entryId) : null;
     if (!updated) {
       const nextItems = (profile.recentActivity || []).filter((_, idx) => idx !== fallbackIndex);
-      updated = updateProfessionalProfile(profileId, { recentActivity: nextItems });
+      updated = await updateProfessionalProfile(profileId, { recentActivity: nextItems });
     }
     if (updated) {
       setProfileFromRecord(updated);
     }
   };
 
-  const handleDeleteExperience = (expId, fallbackIndex) => {
+  const handleDeleteExperience = async (expId, fallbackIndex) => {
     if (!profileId) return;
     if (typeof window !== 'undefined' && !window.confirm(t('confirm_delete_experience', { defaultValue: 'Remove this experience?' }))) return;
-    let updated = expId ? deleteExperience(profileId, expId) : null;
+    let updated = expId ? await deleteExperience(profileId, expId) : null;
     if (!updated) {
       const nextItems = (profile.experience || []).filter((_, idx) => idx !== fallbackIndex);
-      updated = updateProfessionalProfile(profileId, { experience: nextItems });
+      updated = await updateProfessionalProfile(profileId, { experience: nextItems });
     }
     if (updated) {
       setProfileFromRecord(updated);
     }
   };
 
-  const handleDeleteEducation = (eduId, fallbackIndex) => {
+  const handleDeleteEducation = async (eduId, fallbackIndex) => {
     if (!profileId) return;
     if (typeof window !== 'undefined' && !window.confirm(t('confirm_delete_education', { defaultValue: 'Remove this education entry?' }))) return;
-    let updated = eduId ? deleteEducation(profileId, eduId) : null;
+    let updated = eduId ? await deleteEducation(profileId, eduId) : null;
     if (!updated) {
       const nextItems = (profile.education || []).filter((_, idx) => idx !== fallbackIndex);
-      updated = updateProfessionalProfile(profileId, { education: nextItems });
+      updated = await updateProfessionalProfile(profileId, { education: nextItems });
     }
     if (updated) {
       setProfileFromRecord(updated);
     }
   };
 
-  const handleDeleteSkill = (skill) => {
+  const handleDeleteSkill = async (skill) => {
     if (!profileId) return;
-    const updated = removeSkill(profileId, skill);
+    const updated = await removeSkill(profileId, skill);
     if (updated) {
       setProfileFromRecord(updated);
     }
@@ -622,7 +629,7 @@ function MyProfile() {
     setShowBasicsModal(true);
   };
 
-  const handleBasicsSubmit = (event) => {
+  const handleBasicsSubmit = async (event) => {
     event.preventDefault();
     if (!profileId) return;
     const updates = {
@@ -631,7 +638,7 @@ function MyProfile() {
       tagline: basicInfoForm.tagline?.trim() || '',
       description: basicInfoForm.description?.trim() || ''
     };
-    const updated = updateProfessionalProfile(profileId, updates);
+    const updated = await updateProfessionalProfile(profileId, updates);
     if (updated) {
       setProfileFromRecord(updated);
       setContactForm(prev => ({ ...prev, tagline: updates.tagline }));
@@ -639,7 +646,7 @@ function MyProfile() {
     }
   };
 
-  if (!profile) {
+  if (isLoading) {
     return (
       <div className="dashboard-shell p-4">
         <div className="dashboard-card d-flex">
@@ -652,8 +659,28 @@ function MyProfile() {
             </div>
           </main>
         </div>
-        <LoginModal 
-          show={showLoginModal} 
+        <LoginModal
+          show={showLoginModal}
+          onHide={() => setShowLoginModal(false)}
+          onSwitchToSignup={handleSwitchToSignup}
+        />
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div className="dashboard-shell p-4">
+        <div className="dashboard-card d-flex">
+          <Sidebar />
+          <main className="dashboard-main p-4">
+            <div className="text-center py-5 text-muted">
+              <p>ไม่พบข้อมูล Profile — กรุณารัน SQL ใน Supabase ก่อน</p>
+            </div>
+          </main>
+        </div>
+        <LoginModal
+          show={showLoginModal}
           onHide={() => setShowLoginModal(false)}
           onSwitchToSignup={handleSwitchToSignup}
         />
@@ -2164,7 +2191,7 @@ function MyProfile() {
         centered
         dialogClassName="sheet-modal profile-modal contact-modal"
       >
-        <Form onSubmit={(e) => {
+        <Form onSubmit={async (e) => {
           e.preventDefault();
           if (!profileId) return;
           const formattedLinks = (contactForm.links || [])
@@ -2183,7 +2210,7 @@ function MyProfile() {
             },
             tagline: contactForm.tagline
           };
-          const updated = updateProfessionalProfile(profileId, updates);
+          const updated = await updateProfessionalProfile(profileId, updates);
           if (updated) {
             setProfileFromRecord(updated);
             setContactForm({

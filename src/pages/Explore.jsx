@@ -16,41 +16,46 @@ function Explore() {
   const [selectedSkill, setSelectedSkill] = useState('');
   const [selectedLocation, setSelectedLocation] = useState('');
   const [experienceLevel, setExperienceLevel] = useState('');
-  const [sortBy, setSortBy] = useState('recent'); // recent, name, experience
+  const [sortBy, setSortBy] = useState('recent');
   const [profiles, setProfiles] = useState([]);
   const [filteredProfiles, setFilteredProfiles] = useState([]);
-  
+  const [savedProfileIds, setSavedProfileIds] = useState(new Set());
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const profilesPerPage = 12;
 
+  // Load saved IDs once on mount
+  useEffect(() => {
+    import('../services/savedProfiles').then(({ getSavedProfiles }) => {
+      getSavedProfiles().then(ids => setSavedProfileIds(new Set(ids)));
+    });
+  }, []);
+
   // Load public profiles on mount
   useEffect(() => {
-    const loadProfiles = () => {
-      const publicProfiles = getPublicProfessionalProfiles();
+    const loadProfiles = async () => {
+      const publicProfiles = await getPublicProfessionalProfiles();
       setProfiles(publicProfiles);
       setFilteredProfiles(sortProfiles(publicProfiles, sortBy));
     };
-    
     loadProfiles();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Apply filters when any filter changes
   useEffect(() => {
-    const filters = {};
-    
-    if (selectedSkill) filters.skill = selectedSkill;
-    if (selectedLocation) filters.location = selectedLocation;
-    if (experienceLevel) filters.experienceLevel = experienceLevel;
-
-    let results = searchProfessionalProfiles(searchQuery, filters);
-    
-    // Apply sorting
-    results = sortProfiles(results, sortBy);
-    
-    setFilteredProfiles(results);
-    setCurrentPage(1); // Reset to first page when filters change
+    const applyFilters = async () => {
+      const filters = {};
+      if (selectedSkill) filters.skill = selectedSkill;
+      if (selectedLocation) filters.location = selectedLocation;
+      if (experienceLevel) filters.experienceLevel = experienceLevel;
+      let results = await searchProfessionalProfiles(searchQuery, filters);
+      results = sortProfiles(results, sortBy);
+      setFilteredProfiles(results);
+      setCurrentPage(1);
+    };
+    applyFilters();
   }, [searchQuery, selectedSkill, selectedLocation, experienceLevel, profiles, sortBy]);
 
   const sortProfiles = (profileList, sortOption) => {
@@ -91,9 +96,13 @@ function Explore() {
     setSortBy('recent');
   };
 
-  // Get unique skills, locations from professional profiles
-  const allSkills = getAllSkills();
-  const allLocations = getAllLocations();
+  const [allSkills, setAllSkills] = useState([]);
+  const [allLocations, setAllLocations] = useState([]);
+
+  useEffect(() => {
+    getAllSkills().then(setAllSkills);
+    getAllLocations().then(setAllLocations);
+  }, [profiles]);
 
   // Pagination logic
   const indexOfLastProfile = currentPage * profilesPerPage;
@@ -106,22 +115,23 @@ function Explore() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleSaveProfile = (e, profileId) => {
-    e.stopPropagation(); // Prevent card click
+  const handleSaveProfile = async (e, profileId) => {
+    e.stopPropagation();
     const user = getCurrentUser();
     if (!user) {
       setShowLoginModal(true);
       return;
     }
-    const alreadySaved = isProfileSaved(profileId);
+    const alreadySaved = savedProfileIds.has(profileId);
     if (alreadySaved) {
-      unsaveProfile(profileId);
-      adjustVheartLikes(profileId, -1);
+      await unsaveProfile(profileId);
+      await adjustVheartLikes(profileId, -1);
+      setSavedProfileIds(prev => { const next = new Set(prev); next.delete(profileId); return next; });
     } else {
-      saveProfile(profileId);
-      adjustVheartLikes(profileId, 1);
+      await saveProfile(profileId);
+      await adjustVheartLikes(profileId, 1);
+      setSavedProfileIds(prev => new Set([...prev, profileId]));
     }
-    // Force re-render by toggling state
     setFilteredProfiles(prev => [...prev]);
   };
 
@@ -276,7 +286,7 @@ function Explore() {
               const data = profile.data || {};
               const skills = data.skills || [];
               const topSkills = skills.slice(0, 3);
-              const isSaved = isProfileSaved(profile.id);
+              const isSaved = savedProfileIds.has(profile.id);
 
               return (
                 <Col key={profile.id || index} md={6} lg={4}>

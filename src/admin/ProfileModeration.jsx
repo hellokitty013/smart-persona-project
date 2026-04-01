@@ -14,15 +14,15 @@ export default function ProfileModeration() {
         setCurrentUser(getCurrentUser())
     }, [])
 
-    const loadProfiles = () => {
-        setPersonalProfiles(getAllProfiles())
+    const loadProfiles = async () => {
+        setPersonalProfiles(await getAllProfiles())
     }
 
-    const handleToggleVisibility = (profile) => {
+    const handleToggleVisibility = async (profile) => {
         const newStatus = !profile.data.isPublic
-        updateProfile(profile.id, { isPublic: newStatus })
+        await updateProfile(profile.id, { isPublic: newStatus })
         setMessage(`Profile visibility updated to ${newStatus ? 'Public' : 'Private'}`)
-        loadProfiles()
+        await loadProfiles()
     }
 
     const filteredProfiles = personalProfiles.filter(p => {

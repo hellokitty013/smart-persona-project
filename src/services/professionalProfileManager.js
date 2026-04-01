@@ -1,64 +1,73 @@
-// Professional Profile Manager - Separate from Personal/Vtree/Resume profiles
-// This manages LinkedIn-style professional profiles
-
+// Professional Profile Manager — Supabase backend
+import { supabase } from '../supabaseClient'
 import { getCurrentUser } from './auth'
 
-const STORAGE_KEY = 'professional_profiles';
-const ACTIVE_PROFILE_KEY = 'active_professional_profile';
+const ACTIVE_PROFILE_KEY = 'active_professional_profile'
 
-// Initialize professional profiles in localStorage
-export const initProfessionalProfiles = () => {
-  if (!localStorage.getItem(STORAGE_KEY)) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
-  }
-};
+// ─── CRUD ─────────────────────────────────────────────────────────────────────
 
-// Get all professional profiles
-export const getAllProfessionalProfiles = () => {
-  initProfessionalProfiles();
-  const profiles = localStorage.getItem(STORAGE_KEY);
-  return profiles ? JSON.parse(profiles) : [];
-};
+export const initProfessionalProfiles = () => {} // no-op: Supabase handles init
 
-// Get professional profile by ID
-export const getProfessionalProfileById = (id) => {
-  const profiles = getAllProfessionalProfiles();
-  return profiles.find(p => p.id === id);
-};
+export const getAllProfessionalProfiles = async () => {
+  const { data, error } = await supabase
+    .from('professional_profiles')
+    .select('*')
+    .order('created_at', { ascending: true })
+  if (error) { console.error('getAllProfessionalProfiles:', error); return [] }
+  return data || []
+}
 
-// Get professional profile by username
-export const getProfessionalProfileByUsername = (username) => {
-  const profiles = getAllProfessionalProfiles();
-  return profiles.find(p => p.username === username);
-};
+export const getProfessionalProfileById = async (id) => {
+  const { data, error } = await supabase
+    .from('professional_profiles')
+    .select('*')
+    .eq('id', id)
+    .single()
+  if (error) { console.error('getProfessionalProfileById:', error); return null }
+  return data
+}
 
-// Get current user's professional profile
-export const getCurrentUserProfessionalProfile = () => {
-  const currentUser = getCurrentUser() || JSON.parse(localStorage.getItem('currentUser') || '{}');
-  if (!currentUser?.username) return null;
+export const getProfessionalProfileByUsername = async (username) => {
+  const { data, error } = await supabase
+    .from('professional_profiles')
+    .select('*')
+    .eq('username', username)
+    .maybeSingle()
+  if (error) { console.error('getProfessionalProfileByUsername:', error); return null }
+  return data
+}
 
-  return getProfessionalProfileByUsername(currentUser.username);
-};
+export const getCurrentUserProfessionalProfile = async () => {
+  const { data: { session } } = await supabase.auth.getSession(); const user = session?.user
+  if (!user) return null
+  const { data, error } = await supabase
+    .from('professional_profiles')
+    .select('*')
+    .eq('user_id', user.id)
+    .maybeSingle()
+  if (error) { console.error('getCurrentUserProfessionalProfile:', error); return null }
+  return data
+}
 
-// Create a new professional profile
-export const createProfessionalProfile = (username) => {
-  const profiles = getAllProfessionalProfiles();
-  
-  // Check if user already has a professional profile
-  const existing = profiles.find(p => p.username === username);
-  if (existing) return existing;
+export const createProfessionalProfile = async (username) => {
+  const { data: { session } } = await supabase.auth.getSession(); const user = session?.user
+  if (!user) throw new Error('Not authenticated')
+
+  const existing = await getProfessionalProfileByUsername(username)
+  if (existing) return existing
 
   const newProfile = {
-    id: Date.now().toString(),
-    username: username,
-    createdAt: new Date().toISOString(),
+    user_id: user.id,
+    username,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
     data: {
       displayName: username,
       jobTitle: '',
       location: '',
       avatar: `https://ui-avatars.com/api/?name=${username}&background=random`,
       coverImage: '',
-      coverColor: '#0a66c2', // LinkedIn blue
+      coverColor: '#0a66c2',
       about: '',
       experienceYears: 0,
       skills: [],
@@ -68,308 +77,218 @@ export const createProfessionalProfile = (username) => {
       followers: 0,
       vheartLikes: 0,
       following: 0,
-      contact: {
-        email: '',
-        phone: '',
-        address: '',
-        links: []
-      },
+      contact: { email: '', phone: '', address: '', links: [] },
       featuredItems: [],
       recentActivity: [],
       isPublic: true
     }
-  };
+  }
 
-  profiles.push(newProfile);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(profiles));
-  return newProfile;
-};
+  const { data, error } = await supabase
+    .from('professional_profiles')
+    .insert(newProfile)
+    .select()
+    .single()
+  if (error) { console.error('createProfessionalProfile:', error); throw error }
+  return data
+}
 
-// Update professional profile
-export const updateProfessionalProfile = (id, updates) => {
-  const profiles = getAllProfessionalProfiles();
-  const index = profiles.findIndex(p => p.id === id);
-  
-  if (index === -1) return null;
+export const updateProfessionalProfile = async (id, updates) => {
+  const current = await getProfessionalProfileById(id)
+  if (!current) return null
 
-  profiles[index] = {
-    ...profiles[index],
-    data: {
-      ...profiles[index].data,
-      ...updates
-    },
-    updatedAt: new Date().toISOString()
-  };
+  const { data, error } = await supabase
+    .from('professional_profiles')
+    .update({
+      data: { ...current.data, ...updates },
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) { console.error('updateProfessionalProfile:', error); throw error }
+  return data
+}
 
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(profiles));
-  return profiles[index];
-};
+export const deleteProfessionalProfile = async (id) => {
+  const { error } = await supabase.from('professional_profiles').delete().eq('id', id)
+  if (error) { console.error('deleteProfessionalProfile:', error); return false }
+  return true
+}
 
-// Delete professional profile
-export const deleteProfessionalProfile = (id) => {
-  const profiles = getAllProfessionalProfiles();
-  const filtered = profiles.filter(p => p.id !== id);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
-  return true;
-};
+export const getPublicProfessionalProfiles = async () => {
+  const { data, error } = await supabase
+    .from('professional_profiles')
+    .select('*')
+  if (error) { console.error('getPublicProfessionalProfiles:', error); return [] }
+  return (data || []).filter(p => p.data?.isPublic === true)
+}
 
-// Get all public professional profiles
-export const getPublicProfessionalProfiles = () => {
-  const profiles = getAllProfessionalProfiles();
-  return profiles.filter(p => p.data.isPublic === true);
-};
+export const searchProfessionalProfiles = async (query = '', filters = {}) => {
+  let profiles = await getPublicProfessionalProfiles()
 
-// Search professional profiles
-export const searchProfessionalProfiles = (query = '', filters = {}) => {
-  let profiles = getPublicProfessionalProfiles();
-
-  // Text search
   if (query.trim()) {
-    const searchLower = query.toLowerCase();
+    const q = query.toLowerCase()
     profiles = profiles.filter(p => {
-      const data = p.data;
+      const d = p.data
       return (
-        data.displayName?.toLowerCase().includes(searchLower) ||
-        data.jobTitle?.toLowerCase().includes(searchLower) ||
-        data.location?.toLowerCase().includes(searchLower) ||
-        data.skills?.some(skill => skill.toLowerCase().includes(searchLower))
-      );
-    });
+        d.displayName?.toLowerCase().includes(q) ||
+        d.jobTitle?.toLowerCase().includes(q) ||
+        d.location?.toLowerCase().includes(q) ||
+        d.skills?.some(s => s.toLowerCase().includes(q))
+      )
+    })
   }
 
-  // Filter by skill
   if (filters.skill) {
-    profiles = profiles.filter(p => 
+    profiles = profiles.filter(p =>
       p.data.skills?.some(s => s.toLowerCase() === filters.skill.toLowerCase())
-    );
+    )
   }
-
-  // Filter by location
   if (filters.location) {
-    profiles = profiles.filter(p => 
+    profiles = profiles.filter(p =>
       p.data.location?.toLowerCase() === filters.location.toLowerCase()
-    );
+    )
   }
-
-  // Filter by experience level
   if (filters.experienceLevel) {
     profiles = profiles.filter(p => {
-      const years = p.data.experienceYears || 0;
-      switch(filters.experienceLevel) {
-        case 'junior':
-          return years < 3;
-        case 'mid':
-          return years >= 3 && years <= 7;
-        case 'senior':
-          return years > 7;
-        default:
-          return true;
+      const years = p.data.experienceYears || 0
+      switch (filters.experienceLevel) {
+        case 'junior': return years < 3
+        case 'mid': return years >= 3 && years <= 7
+        case 'senior': return years > 7
+        default: return true
       }
-    });
+    })
   }
 
-  return profiles;
-};
+  return profiles
+}
 
-// Get all unique skills from all profiles
-export const getAllSkills = () => {
-  const profiles = getAllProfessionalProfiles();
-  const skillsSet = new Set();
-  
-  profiles.forEach(profile => {
-    if (profile.data.skills) {
-      profile.data.skills.forEach(skill => skillsSet.add(skill));
-    }
-  });
-  
-  return Array.from(skillsSet).sort();
-};
+export const getAllSkills = async () => {
+  const profiles = await getAllProfessionalProfiles()
+  const set = new Set()
+  profiles.forEach(p => p.data?.skills?.forEach(s => set.add(s)))
+  return Array.from(set).sort()
+}
 
-// Get all unique locations from all profiles
-export const getAllLocations = () => {
-  const profiles = getAllProfessionalProfiles();
-  const locationsSet = new Set();
-  
-  profiles.forEach(profile => {
-    if (profile.data.location) {
-      locationsSet.add(profile.data.location);
-    }
-  });
-  
-  return Array.from(locationsSet).sort();
-};
+export const getAllLocations = async () => {
+  const profiles = await getAllProfessionalProfiles()
+  const set = new Set()
+  profiles.forEach(p => { if (p.data?.location) set.add(p.data.location) })
+  return Array.from(set).sort()
+}
 
-// Add experience to profile
-export const addExperience = (profileId, experience) => {
-  const profile = getProfessionalProfileById(profileId);
-  if (!profile) return null;
+// ─── Experience ───────────────────────────────────────────────────────────────
 
-  const experiences = profile.data.experience || [];
-  experiences.unshift({
-    id: Date.now().toString(),
-    ...experience,
-    createdAt: new Date().toISOString()
-  });
+export const addExperience = async (profileId, experience) => {
+  const profile = await getProfessionalProfileById(profileId)
+  if (!profile) return null
+  const list = [{ id: Date.now().toString(), ...experience, createdAt: new Date().toISOString() }, ...(profile.data.experience || [])]
+  return updateProfessionalProfile(profileId, { experience: list })
+}
 
-  return updateProfessionalProfile(profileId, { experience: experiences });
-};
+export const updateExperience = async (profileId, experienceId, updates) => {
+  const profile = await getProfessionalProfileById(profileId)
+  if (!profile) return null
+  const list = (profile.data.experience || []).map(e => e.id === experienceId ? { ...e, ...updates } : e)
+  return updateProfessionalProfile(profileId, { experience: list })
+}
 
-// Update experience
-export const updateExperience = (profileId, experienceId, updates) => {
-  const profile = getProfessionalProfileById(profileId);
-  if (!profile) return null;
+export const deleteExperience = async (profileId, experienceId) => {
+  const profile = await getProfessionalProfileById(profileId)
+  if (!profile) return null
+  const list = (profile.data.experience || []).filter(e => e.id !== experienceId)
+  return updateProfessionalProfile(profileId, { experience: list })
+}
 
-  const experiences = profile.data.experience || [];
-  const index = experiences.findIndex(e => e.id === experienceId);
-  if (index === -1) return null;
+// ─── Education ────────────────────────────────────────────────────────────────
 
-  experiences[index] = { ...experiences[index], ...updates };
-  return updateProfessionalProfile(profileId, { experience: experiences });
-};
+export const addEducation = async (profileId, education) => {
+  const profile = await getProfessionalProfileById(profileId)
+  if (!profile) return null
+  const list = [{ id: Date.now().toString(), ...education, createdAt: new Date().toISOString() }, ...(profile.data.education || [])]
+  return updateProfessionalProfile(profileId, { education: list })
+}
 
-// Delete experience
-export const deleteExperience = (profileId, experienceId) => {
-  const profile = getProfessionalProfileById(profileId);
-  if (!profile) return null;
+export const updateEducation = async (profileId, educationId, updates) => {
+  const profile = await getProfessionalProfileById(profileId)
+  if (!profile) return null
+  const list = (profile.data.education || []).map(e => e.id === educationId ? { ...e, ...updates } : e)
+  return updateProfessionalProfile(profileId, { education: list })
+}
 
-  const experiences = (profile.data.experience || []).filter(e => e.id !== experienceId);
-  return updateProfessionalProfile(profileId, { experience: experiences });
-};
+export const deleteEducation = async (profileId, educationId) => {
+  const profile = await getProfessionalProfileById(profileId)
+  if (!profile) return null
+  const list = (profile.data.education || []).filter(e => e.id !== educationId)
+  return updateProfessionalProfile(profileId, { education: list })
+}
 
-// Add education to profile
-export const addEducation = (profileId, education) => {
-  const profile = getProfessionalProfileById(profileId);
-  if (!profile) return null;
+// ─── Skills ───────────────────────────────────────────────────────────────────
 
-  const educationList = profile.data.education || [];
-  educationList.unshift({
-    id: Date.now().toString(),
-    ...education,
-    createdAt: new Date().toISOString()
-  });
+export const addSkill = async (profileId, skill) => {
+  const profile = await getProfessionalProfileById(profileId)
+  if (!profile) return null
+  const skills = profile.data.skills || []
+  if (skills.includes(skill)) return profile
+  return updateProfessionalProfile(profileId, { skills: [...skills, skill] })
+}
 
-  return updateProfessionalProfile(profileId, { education: educationList });
-};
+export const removeSkill = async (profileId, skill) => {
+  const profile = await getProfessionalProfileById(profileId)
+  if (!profile) return null
+  return updateProfessionalProfile(profileId, { skills: (profile.data.skills || []).filter(s => s !== skill) })
+}
 
-// Update education
-export const updateEducation = (profileId, educationId, updates) => {
-  const profile = getProfessionalProfileById(profileId);
-  if (!profile) return null;
+// ─── Featured Items ───────────────────────────────────────────────────────────
 
-  const educationList = profile.data.education || [];
-  const index = educationList.findIndex(e => e.id === educationId);
-  if (index === -1) return null;
+export const addFeaturedItem = async (profileId, item) => {
+  const profile = await getProfessionalProfileById(profileId)
+  if (!profile) return null
+  const newItem = { id: Date.now().toString(), type: item.type || 'Project', title: item.title || 'Untitled', description: item.description || '', url: item.url || '', cover: item.cover || '', createdAt: new Date().toISOString() }
+  const list = [newItem, ...(profile.data.featuredItems || [])]
+  return updateProfessionalProfile(profileId, { featuredItems: list })
+}
 
-  educationList[index] = { ...educationList[index], ...updates };
-  return updateProfessionalProfile(profileId, { education: educationList });
-};
+export const removeFeaturedItem = async (profileId, itemId) => {
+  const profile = await getProfessionalProfileById(profileId)
+  if (!profile) return null
+  return updateProfessionalProfile(profileId, { featuredItems: (profile.data.featuredItems || []).filter(i => i.id !== itemId) })
+}
 
-// Delete education
-export const deleteEducation = (profileId, educationId) => {
-  const profile = getProfessionalProfileById(profileId);
-  if (!profile) return null;
+// ─── Activity ─────────────────────────────────────────────────────────────────
 
-  const educationList = (profile.data.education || []).filter(e => e.id !== educationId);
-  return updateProfessionalProfile(profileId, { education: educationList });
-};
+export const addActivityEntry = async (profileId, entry) => {
+  const profile = await getProfessionalProfileById(profileId)
+  if (!profile) return null
+  const newEntry = { id: Date.now().toString(), type: entry.type || 'Update', title: entry.title || entry.summary || 'New update', description: entry.description || '', timestamp: entry.timestamp || new Date().toLocaleString(), icon: entry.icon || 'bi-activity' }
+  return updateProfessionalProfile(profileId, { recentActivity: [newEntry, ...(profile.data.recentActivity || [])] })
+}
 
-// Remove featured item
-export const removeFeaturedItem = (profileId, itemId) => {
-  const profile = getProfessionalProfileById(profileId);
-  if (!profile) return null;
+export const removeActivityEntry = async (profileId, entryId) => {
+  const profile = await getProfessionalProfileById(profileId)
+  if (!profile) return null
+  return updateProfessionalProfile(profileId, { recentActivity: (profile.data.recentActivity || []).filter(i => i.id !== entryId) })
+}
 
-  const filtered = (profile.data.featuredItems || []).filter(item => item.id !== itemId);
-  return updateProfessionalProfile(profileId, { featuredItems: filtered });
-};
-// Add skill to profile
-export const addSkill = (profileId, skill) => {
-  const profile = getProfessionalProfileById(profileId);
-  if (!profile) return null;
+// ─── Likes / Active Profile ───────────────────────────────────────────────────
 
-  const skills = profile.data.skills || [];
-  if (!skills.includes(skill)) {
-    skills.push(skill);
-    return updateProfessionalProfile(profileId, { skills });
-  }
-  return profile;
-};
+export const adjustVheartLikes = async (profileId, delta = 1) => {
+  const profile = await getProfessionalProfileById(profileId)
+  if (!profile) return null
+  const current = profile.data.vheartLikes ?? profile.data.followers ?? 0
+  const nextValue = Math.max(0, current + delta)
+  return updateProfessionalProfile(profileId, { vheartLikes: nextValue, followers: nextValue })
+}
 
-// Remove skill from profile
-export const removeSkill = (profileId, skill) => {
-  const profile = getProfessionalProfileById(profileId);
-  if (!profile) return null;
-
-  const skills = (profile.data.skills || []).filter(s => s !== skill);
-  return updateProfessionalProfile(profileId, { skills });
-};
-
-// Add featured/spotlight item
-export const addFeaturedItem = (profileId, item) => {
-  const profile = getProfessionalProfileById(profileId);
-  if (!profile) return null;
-
-  const featuredItems = profile.data.featuredItems || [];
-  const newItem = {
-    id: Date.now().toString(),
-    type: item.type || 'Project',
-    title: item.title || 'Untitled',
-    description: item.description || '',
-    url: item.url || '',
-    cover: item.cover || '',
-    createdAt: new Date().toISOString()
-  };
-
-  featuredItems.unshift(newItem);
-  return updateProfessionalProfile(profileId, { featuredItems });
-};
-
-// Add timeline activity entry
-export const addActivityEntry = (profileId, entry) => {
-  const profile = getProfessionalProfileById(profileId);
-  if (!profile) return null;
-
-  const timeline = profile.data.recentActivity || [];
-  const newEntry = {
-    id: Date.now().toString(),
-    type: entry.type || 'Update',
-    title: entry.title || entry.summary || 'New update',
-    description: entry.description || '',
-    timestamp: entry.timestamp || new Date().toLocaleString(),
-    icon: entry.icon || 'bi-activity'
-  };
-
-  timeline.unshift(newEntry);
-  return updateProfessionalProfile(profileId, { recentActivity: timeline });
-};
-
-// Remove activity entry
-export const removeActivityEntry = (profileId, entryId) => {
-  const profile = getProfessionalProfileById(profileId);
-  if (!profile) return null;
-
-  const timeline = (profile.data.recentActivity || []).filter(item => item.id !== entryId);
-  return updateProfessionalProfile(profileId, { recentActivity: timeline });
-};
-
-export const adjustVheartLikes = (profileId, delta = 1) => {
-  const profile = getProfessionalProfileById(profileId);
-  if (!profile) return null;
-
-  const current = profile.data.vheartLikes ?? profile.data.followers ?? 0;
-  const nextValue = Math.max(0, current + delta);
-
-  return updateProfessionalProfile(profileId, { vheartLikes: nextValue, followers: nextValue });
-};
-// Set active professional profile
 export const setActiveProfessionalProfile = (profileId) => {
-  localStorage.setItem(ACTIVE_PROFILE_KEY, profileId);
-};
+  localStorage.setItem(ACTIVE_PROFILE_KEY, profileId)
+}
 
-// Get active professional profile
-export const getActiveProfessionalProfile = () => {
-  const profileId = localStorage.getItem(ACTIVE_PROFILE_KEY);
-  if (profileId) {
-    return getProfessionalProfileById(profileId);
-  }
-  return null;
-};
+export const getActiveProfessionalProfile = async () => {
+  const profileId = localStorage.getItem(ACTIVE_PROFILE_KEY)
+  if (profileId) return getProfessionalProfileById(profileId)
+  return null
+}
+

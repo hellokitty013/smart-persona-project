@@ -15,20 +15,21 @@ export default function ThemeManagement() {
         setCurrentUser(getCurrentUser())
     }, [])
 
-    const loadThemes = () => {
-        setCommunityThemes(getCommunityThemes())
-        // Load base themes for all types
+    const loadThemes = async () => {
+        const community = await getCommunityThemes()
+        setCommunityThemes(community)
+        // Load base themes for all types (sync)
         const personal = getBaseThemesByType('personal')
         const vtree = getBaseThemesByType('vtree')
         const resume = getBaseThemesByType('resume')
         setBaseThemes([...personal, ...vtree, ...resume])
     }
 
-    const handleDelete = (themeId) => {
+    const handleDelete = async (themeId) => {
         if (window.confirm('Are you sure you want to delete this theme? This cannot be undone.')) {
-            deleteCommunityTheme(themeId)
+            await deleteCommunityTheme(themeId)
             setMessage('Theme deleted successfully')
-            loadThemes()
+            await loadThemes()
         }
     }
 

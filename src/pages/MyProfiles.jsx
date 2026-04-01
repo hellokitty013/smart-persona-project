@@ -17,6 +17,8 @@ function MyProfiles() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [newProfileType, setNewProfileType] = useState('personal')
   const [newProfileName, setNewProfileName] = useState('')
+  const [isCreating, setIsCreating] = useState(false)
+  const [createError, setCreateError] = useState('')
   const selectedProfileType = profileTypes.find(t => t.value === newProfileType)
 
   useEffect(() => {
@@ -27,8 +29,8 @@ function MyProfiles() {
     loadProfiles()
   }, [])
 
-  const loadProfiles = () => {
-    const allProfiles = getAllProfiles()
+  const loadProfiles = async () => {
+    const allProfiles = await getAllProfiles()
     setProfiles(allProfiles)
     setActiveProfileId(getActiveProfileId())
   }
@@ -43,12 +45,21 @@ function MyProfiles() {
     setShowCreateModal(true)
   }
 
-  const handleSaveNewProfile = () => {
-    const name = newProfileName.trim() || `${newProfileType.charAt(0).toUpperCase() + newProfileType.slice(1)} Profile`
-    createProfile({ type: newProfileType, name })
-    setShowCreateModal(false)
-    setNewProfileName('')
-    loadProfiles()
+  const handleSaveNewProfile = async () => {
+    setIsCreating(true)
+    setCreateError('')
+    try {
+      const name = newProfileName.trim() || `${newProfileType.charAt(0).toUpperCase() + newProfileType.slice(1)} Profile`
+      await createProfile({ type: newProfileType, name })
+      setShowCreateModal(false)
+      setNewProfileName('')
+      await loadProfiles()
+    } catch (err) {
+      console.error('createProfile error:', err)
+      setCreateError(err?.message || 'Failed to create profile. Make sure the database tables are set up.')
+    } finally {
+      setIsCreating(false)
+    }
   }
 
   const handleSwitchProfile = (profileId) => {
@@ -189,10 +200,10 @@ function MyProfiles() {
       })
     }
     
-    confirmDelete().then((confirmed) => {
+    confirmDelete().then(async (confirmed) => {
       if (confirmed) {
-        deleteProfile(profileId)
-        loadProfiles()
+        await deleteProfile(profileId)
+        await loadProfiles()
       }
     })
   }
@@ -475,13 +486,22 @@ function MyProfiles() {
                   <small className="text-muted">Leave empty to use default name</small>
                 </div>
               </div>
-              <div className="modal-footer">
-                <button className="btn btn-secondary" onClick={() => setShowCreateModal(false)}>
-                  Cancel
-                </button>
-                <button className="btn btn-dark" onClick={handleSaveNewProfile}>
-                  Create Profile
-                </button>
+              <div className="modal-footer flex-column align-items-stretch gap-2">
+                {createError && (
+                  <div className="alert alert-danger py-2 mb-0" style={{ fontSize: '0.85rem' }}>
+                    {createError}
+                  </div>
+                )}
+                <div className="d-flex gap-2 w-100 justify-content-end">
+                  <button className="btn btn-secondary" onClick={() => { setShowCreateModal(false); setCreateError('') }}>
+                    Cancel
+                  </button>
+                  <button className="btn btn-dark" onClick={handleSaveNewProfile} disabled={isCreating}>
+                    {isCreating ? (
+                      <><span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Creating...</>
+                    ) : 'Create Profile'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

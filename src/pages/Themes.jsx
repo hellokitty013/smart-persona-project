@@ -154,22 +154,26 @@ const Themes = () => {
   const refreshThemes = () => setLibraryVersion(prev => prev + 1)
 
   useEffect(() => {
-    try {
-      setThemeLibrary(getThemesForType(selectedTab))
-    } catch (err) {
-      console.error('Failed to load themes', err)
-      setThemeLibrary([])
+    const load = async () => {
+      try {
+        const themes = await getThemesForType(selectedTab)
+        setThemeLibrary(themes)
+      } catch (err) {
+        console.error('Failed to load themes', err)
+        setThemeLibrary([])
+      }
     }
+    load()
   }, [selectedTab, libraryVersion])
 
   useEffect(() => {
     setSelectedFilter('all')
   }, [selectedTab])
 
-  const handleApplyTheme = (theme) => {
+  const handleApplyTheme = async (theme) => {
     if (!ensureAuthenticated()) return
     try {
-      applyThemeToActiveProfile(normalizeThemeShape(theme))
+      await applyThemeToActiveProfile(normalizeThemeShape(theme))
       showToastMessage(`${theme.name} applied!`, 'success')
       setTimeout(() => navigate('/customize'), 1200)
     } catch (err) {
@@ -197,9 +201,9 @@ const Themes = () => {
     }
   }
 
-  const handleSnapshot = (mode) => {
+  const handleSnapshot = async (mode) => {
     if (!ensureAuthenticated() || isSnapshotting) return
-    const activeProfile = getActiveProfile()
+    const activeProfile = await getActiveProfile()
     if (!activeProfile) {
       showToastMessage('No active profile found', 'error')
       return

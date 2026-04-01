@@ -1,5 +1,4 @@
 import { supabase } from '../supabaseClient'; 
-const API_URL = 'http://localhost:5000/api';
 
 const CURRENT_USER_KEY = 'spa_current_user';
 const PROFILE_KEY = 'user_profile';
@@ -40,8 +39,11 @@ export async function logout() {
 
 export async function getUsers() {
   try {
-    const res = await fetch(`${API_URL}/users`);
-    return await res.json();
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, username, full_name, avatar_url, website, role, created_at');
+    if (error) { console.error('getUsers:', error); return []; }
+    return data || [];
   } catch (error) {
     console.error(error);
     return [];
@@ -119,70 +121,82 @@ export async function login(identifier, password) {
 }
 
 export async function isAdmin() {
-  const cur = getCurrentUser();
-  if (!cur || !cur.username) return false;
-  const users = await getUsers();
-  const found = users.find(u => u.username === cur.username);
-  return !!(found && found.role === 'admin');
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return false;
+    const { data } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+    return data?.role === 'admin';
+  } catch { return false; }
 }
 
 export async function promoteUserToAdmin(username) {
   try {
-    const res = await fetch(`${API_URL}/users/${username}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ role: 'admin' })
-    });
-    const data = await res.json();
-    return data.ok;
-  } catch (e) { return false; }
+    const { error } = await supabase
+      .from('profiles')
+      .update({ role: 'admin' })
+      .eq('username', username);
+    return !error;
+  } catch { return false; }
 }
 
 export async function demoteAdminToUser(username) {
   try {
-    const res = await fetch(`${API_URL}/users/${username}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ role: 'user' })
-    });
-    const data = await res.json();
-    return data.ok;
-  } catch (e) { return false; }
+    const { error } = await supabase
+      .from('profiles')
+      .update({ role: 'user' })
+      .eq('username', username);
+    return !error;
+  } catch { return false; }
 }
 
 export async function deleteUser(username) {
   try {
-    const res = await fetch(`${API_URL}/users/${username}`, { method: 'DELETE' });
-    const data = await res.json();
-    return data.ok;
-  } catch (e) { return false; }
+    const { error } = await supabase
+      .from('profiles')
+      .delete()
+      .eq('username', username);
+    return !error;
+  } catch { return false; }
 }
 
 export async function impersonateUser(username) {
-  const users = await getUsers();
-  const targetUser = users.find(u => u.username === username);
-  if (!targetUser) return false;
-
-  setSession({ username: targetUser.username, email: targetUser.email, token: targetUser.token });
-  writeJSON(PROFILE_KEY, {
-    username: targetUser.username,
-    firstName: targetUser.firstName || '',
-    lastName: targetUser.lastName || '',
-    email: targetUser.email,
-    description: '',
-    avatar: ''
-  });
-  return true;
+  try {
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('username', username)
+      .single();
+    if (!data) return false;
+    setSession({ username: data.username, email: data.email || '', token: data.id });
+    writeJSON(PROFILE_KEY, {
+      username: data.username,
+      firstName: data.first_name || '',
+      lastName: data.last_name || '',
+      email: data.email || '',
+      description: '',
+      avatar: data.avatar_url || ''
+    });
+    return true;
+  } catch { return false; }
 }
 
 export async function updateUser(username, updates) {
   try {
-    const res = await fetch(`${API_URL}/users/${username}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updates)
-    });
-    const data = await res.json();
-    return data.ok;
-  } catch (e) { return false; }
+    const mapped = {};
+    if (updates.role !== undefined) mapped.role = updates.role;
+    if (updates.firstName !== undefined) mapped.first_name = updates.firstName;
+    if (updates.lastName !== undefined) mapped.last_name = updates.lastName;
+    if (updates.full_name !== undefined) mapped.full_name = updates.full_name;
+    if (updates.avatar_url !== undefined) mapped.avatar_url = updates.avatar_url;
+
+    const { error } = await supabase
+      .from('profiles')
+      .update(mapped)
+      .eq('username', username);
+    return !error;
+  } catch { return false; }
 }

@@ -63,9 +63,9 @@ function Sidebar() {
     return () => window.removeEventListener('resize', updateSidebarMetrics)
   }, [])
 
-  const loadSidebarProfile = () => {
+  const loadSidebarProfile = async () => {
     try {
-      const activeProfile = getActiveProfile()
+      const activeProfile = await getActiveProfile()
       if (activeProfile?.data) {
         setActiveProfileRecord(activeProfile)
         setLegacyProfile(null)
@@ -98,9 +98,9 @@ function Sidebar() {
     }
   }
 
-  const loadProfessionalProfile = () => {
+  const loadProfessionalProfile = async () => {
     try {
-      const professionalProfile = getCurrentUserProfessionalProfile()
+      const professionalProfile = await getCurrentUserProfessionalProfile()
       if (professionalProfile?.data) {
         const profileUsername = professionalProfile.data.username || professionalProfile.username
         setProfessionalProfileData({
@@ -123,7 +123,7 @@ function Sidebar() {
   const displayProfile = professionalProfileData || profile
   const sidebarName = displayProfile?.username || displayProfile?.displayName || 'Guest'
 
-  const handleVisibilityChange = (makePublic) => {
+  const handleVisibilityChange = async (makePublic) => {
     if (!profile || isUpdatingVisibility) return
     const nextValue = !!makePublic
     const currentValue = profile.isPublic !== false
@@ -137,7 +137,7 @@ function Sidebar() {
     setIsUpdatingVisibility(true)
     try {
       if (activeProfileRecord?.id) {
-        const updated = updateProfile(activeProfileRecord.id, { isPublic: nextValue })
+        const updated = await updateProfile(activeProfileRecord.id, { isPublic: nextValue })
         setActiveProfileRecord(updated)
       } else if (legacyProfile) {
         const updatedLegacy = { ...legacyProfile, isPublic: nextValue }

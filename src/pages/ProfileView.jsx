@@ -60,7 +60,7 @@ const ProfileView = () => {
     const loadProfile = async () => {
       try {
         // Try to load from multi-profile system first
-        const allProfiles = getAllProfiles()
+        const allProfiles = await getAllProfiles()
         if (allProfiles && allProfiles.length > 0) {
           let targetProfile = null
 
@@ -133,27 +133,30 @@ const ProfileView = () => {
   // Record profile view
   useEffect(() => {
     if (profile && profile.username) {
-      const currentUser = getCurrentUser()
-      const viewerUsername = currentUser?.username || 'anonymous'
+      const load = async () => {
+        const currentUser = getCurrentUser()
+        const viewerUsername = currentUser?.username || 'anonymous'
 
-      // Find the profile ID to record view
-      const allProfiles = getAllProfiles()
-      const targetProfile = allProfiles.find(p =>
-        p.data?.username === profile.username
-      )
+        // Find the profile ID to record view
+        const allProfiles = await getAllProfiles()
+        const targetProfile = allProfiles.find(p =>
+          p.data?.username === profile.username
+        )
 
-      if (targetProfile) {
-        recordProfileView(targetProfile.id, viewerUsername)
-      }
-
-      try {
-        const professionalProfile = getProfessionalProfileByUsername(profile.username)
-        if (professionalProfile) {
-          recordProfileView(professionalProfile.id, viewerUsername)
+        if (targetProfile) {
+          await recordProfileView(targetProfile.id, viewerUsername)
         }
-      } catch (err) {
-        console.warn('Failed to record professional profile view', err)
+
+        try {
+          const professionalProfile = await getProfessionalProfileByUsername(profile.username)
+          if (professionalProfile) {
+            await recordProfileView(professionalProfile.id, viewerUsername)
+          }
+        } catch (err) {
+          console.warn('Failed to record professional profile view', err)
+        }
       }
+      load()
     }
   }, [profile])
 
