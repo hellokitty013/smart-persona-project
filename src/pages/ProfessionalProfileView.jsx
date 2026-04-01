@@ -47,28 +47,31 @@ const ProfessionalProfileView = () => {
   const [reportSubmitted, setReportSubmitted] = useState(false);
 
   useEffect(() => {
-    const record = getProfessionalProfileByUsername(username);
-    if (!record) {
-      setStatus('notfound');
-      return;
-    }
+    const load = async () => {
+      const record = await getProfessionalProfileByUsername(username);
+      if (!record) {
+        setStatus('notfound');
+        return;
+      }
 
-    setProfileRecord(record);
-    if (record.data?.isPublic === false) {
-      setStatus('private');
-      return;
-    }
+      setProfileRecord(record);
+      if (record.data?.isPublic === false) {
+        setStatus('private');
+        return;
+      }
 
-    setStatus('ready');
-    const analyticsData = getProfileAnalytics(record.id);
-    setAnalytics(analyticsData);
+      setStatus('ready');
+      const analyticsData = await getProfileAnalytics(record.id);
+      setAnalytics(analyticsData);
 
-    try {
-      const viewer = getCurrentUser()?.username || 'anonymous';
-      recordProfileView(record.id, viewer);
-    } catch (err) {
-      console.warn('Failed to record profile view', err);
-    }
+      try {
+        const viewer = getCurrentUser()?.username || 'anonymous';
+        await recordProfileView(record.id, viewer);
+      } catch (err) {
+        console.warn('Failed to record profile view', err);
+      }
+    };
+    load();
   }, [username]);
 
   const profile = useMemo(() => {

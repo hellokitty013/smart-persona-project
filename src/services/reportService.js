@@ -1,49 +1,44 @@
-const REPORTS_KEY = 'spa_reports'
+// Report Service — Supabase backend
+import { supabase } from '../supabaseClient'
 
-function readJSON(key) {
-    try {
-        const raw = localStorage.getItem(key)
-        return raw ? JSON.parse(raw) : []
-    } catch (err) {
-        return []
-    }
+export async function getReports() {
+  const { data, error } = await supabase
+    .from('reports')
+    .select('*')
+    .order('created_at', { ascending: false })
+  if (error) { console.error('getReports:', error); return [] }
+  return data || []
 }
 
-function writeJSON(key, val) {
-    try { localStorage.setItem(key, JSON.stringify(val)) } catch (e) { }
+export async function createReport(reportData) {
+  const { data: { session } } = await supabase.auth.getSession(); const user = session?.user
+  const { data, error } = await supabase
+    .from('reports')
+    .insert({
+      ...reportData,
+      reporter_id: user?.id || null,
+      status: 'pending',
+      created_at: new Date().toISOString()
+    })
+    .select()
+    .single()
+  if (error) { console.error('createReport:', error); return null }
+  return data
 }
 
-export function getReports() {
-    return readJSON(REPORTS_KEY)
+export async function updateReportStatus(id, status) {
+  const { error } = await supabase
+    .from('reports')
+    .update({ status })
+    .eq('id', id)
+  if (error) { console.error('updateReportStatus:', error); return false }
+  return true
 }
 
-export function createReport(reportData) {
-    const reports = getReports()
-    const newReport = {
-        id: Date.now().toString(),
-        ...reportData,
-        status: 'pending', // pending, resolved, dismissed
-        createdAt: new Date().toISOString()
-    }
-    reports.push(newReport)
-    writeJSON(REPORTS_KEY, reports)
-    return newReport
+export async function deleteReport(id) {
+  const { error } = await supabase.from('reports').delete().eq('id', id)
+  if (error) { console.error('deleteReport:', error); return false }
+  return true
 }
 
-export function updateReportStatus(id, status) {
-    const reports = getReports()
-    const idx = reports.findIndex(r => r.id === id)
-    if (idx !== -1) {
-        reports[idx].status = status
-        writeJSON(REPORTS_KEY, reports)
-        return true
-    }
-    return false
-}
 
-export function deleteReport(id) {
-    const reports = getReports()
-    const updated = reports.filter(r => r.id !== id)
-    writeJSON(REPORTS_KEY, updated)
-    return true
-}

@@ -1,7 +1,5 @@
+import { supabase } from '../supabaseClient'
 import { getActiveProfile, updateProfile } from './profileManager'
-
-const COMMUNITY_THEMES_KEY = 'community_themes'
-const SAVED_THEMES_KEY = 'saved_themes'
 
 const COLOR_TOKEN_KEYS = [
   'bgColor',
@@ -366,31 +364,27 @@ const BASE_THEME_LIBRARY = [
 
 const cloneTheme = (theme) => JSON.parse(JSON.stringify(theme))
 
-const readArray = (key) => {
-  try {
-    const raw = localStorage.getItem(key)
-    return raw ? JSON.parse(raw) : []
-  } catch (err) {
-    console.warn(`Failed to read ${key}`, err)
-    return []
-  }
-}
-
-const writeArray = (key, value) => {
-  localStorage.setItem(key, JSON.stringify(value))
-}
-
 export const getBaseThemesByType = (profileType) => {
   return BASE_THEME_LIBRARY.filter(theme => theme.profileType === profileType).map(cloneTheme)
 }
 
-export const getCommunityThemes = () => readArray(COMMUNITY_THEMES_KEY)
+export const getCommunityThemes = async () => {
+  const { data, error } = await supabase.from('community_themes').select('*').order('created_at', { ascending: false })
+  if (error) { console.error('getCommunityThemes:', error); return [] }
+  return data || []
+}
 
-export const getSavedThemes = () => readArray(SAVED_THEMES_KEY)
+export const getSavedThemes = async () => {
+  const { data: { session } } = await supabase.auth.getSession(); const user = session?.user
+  if (!user) return []
+  const { data, error } = await supabase.from('saved_themes').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
+  if (error) { console.error('getSavedThemes:', error); return [] }
+  return data || []
+}
 
-export const getThemesForType = (profileType) => {
+export const getThemesForType = async (profileType) => {
   const base = getBaseThemesByType(profileType)
-  const community = getCommunityThemes().filter(theme => theme.profileType === profileType)
+  const community = (await getCommunityThemes()).filter(t => t.profileType === profileType)
   return [...base, ...community]
 }
 
@@ -417,39 +411,41 @@ const normalizeThemeInput = (themeInput, source) => {
   }
 }
 
-export const publishTheme = (themeInput) => {
+export const publishTheme = async (themeInput) => {
+  const { data: { session } } = await supabase.auth.getSession(); const user = session?.user
   const theme = normalizeThemeInput(themeInput, 'community')
-  const existing = getCommunityThemes()
-  const updated = [...existing.filter(t => t.id !== theme.id), theme]
-  writeArray(COMMUNITY_THEMES_KEY, updated)
-  return theme
+  const { data, error } = await supabase
+    .from('community_themes')
+    .upsert({ ...theme, user_id: user?.id || null }, { onConflict: 'id' })
+    .select().single()
+  if (error) { console.error('publishTheme:', error); return theme }
+  return data
 }
 
-export const saveThemeLocally = (themeInput) => {
+export const saveThemeLocally = async (themeInput) => {
+  const { data: { session } } = await supabase.auth.getSession(); const user = session?.user
+  if (!user) return null
   const theme = normalizeThemeInput(themeInput, 'saved')
-  const savedThemes = getSavedThemes()
-  const updated = [...savedThemes.filter(t => t.id !== theme.id), theme]
-  writeArray(SAVED_THEMES_KEY, updated)
-  return theme
+  const { data, error } = await supabase
+    .from('saved_themes')
+    .upsert({ ...theme, user_id: user.id }, { onConflict: 'id' })
+    .select().single()
+  if (error) { console.error('saveThemeLocally:', error); return theme }
+  return data
 }
 
-export const deleteSavedTheme = (themeId) => {
-  const saved = getSavedThemes()
-  const updated = saved.filter(theme => theme.id !== themeId)
-  writeArray(SAVED_THEMES_KEY, updated)
-  return updated
+export const deleteSavedTheme = async (themeId) => {
+  const { data: { session } } = await supabase.auth.getSession(); const user = session?.user
+  if (!user) return
+  await supabase.from('saved_themes').delete().eq('id', themeId).eq('user_id', user.id)
 }
 
-export const getThemeById = (themeId) => {
+export const getThemeById = async (themeId) => {
   const base = BASE_THEME_LIBRARY.find(theme => theme.id === themeId)
-  if (base) {
-    return cloneTheme(base)
-  }
-  const community = getCommunityThemes().find(theme => theme.id === themeId)
-  if (community) {
-    return community
-  }
-  const saved = getSavedThemes().find(theme => theme.id === themeId)
+  if (base) return cloneTheme(base)
+  const community = (await getCommunityThemes()).find(t => t.id === themeId)
+  if (community) return community
+  const saved = (await getSavedThemes()).find(t => t.id === themeId)
   return saved || null
 }
 
@@ -477,14 +473,14 @@ export const buildThemeUpdates = (theme) => {
   return updates
 }
 
-export const applyThemeToActiveProfile = (theme) => {
-  const activeProfile = getActiveProfile()
+export const applyThemeToActiveProfile = async (theme) => {
+  const activeProfile = await getActiveProfile()
   if (!activeProfile) {
     throw new Error('No active profile found')
   }
 
   const updates = buildThemeUpdates(theme)
-  updateProfile(activeProfile.id, updates)
+  await updateProfile(activeProfile.id, updates)
   return updates
 }
 
@@ -512,9 +508,7 @@ export const createThemeFromProfile = ({ profileType, name, profileData, preview
   )
 }
 
-export const deleteCommunityTheme = (themeId) => {
-  const community = getCommunityThemes()
-  const updated = community.filter(theme => theme.id !== themeId)
-  writeArray(COMMUNITY_THEMES_KEY, updated)
-  return updated
+export const deleteCommunityTheme = async (themeId) => {
+  await supabase.from('community_themes').delete().eq('id', themeId)
 }
+

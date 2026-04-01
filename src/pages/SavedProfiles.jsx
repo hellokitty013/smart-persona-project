@@ -55,9 +55,10 @@ function SavedProfiles() {
     loadSavedThemes()
   }, [])
 
-  const loadSavedThemes = () => {
+  const loadSavedThemes = async () => {
     try {
-      setSavedThemes(getSavedThemes())
+      const themes = await getSavedThemes()
+      setSavedThemes(themes)
     } catch (err) {
       console.error('Failed to load saved themes', err)
       setSavedThemes([])
@@ -69,9 +70,9 @@ function SavedProfiles() {
     setTimeout(() => setToast({ show: false, message: '', theme: '' }), 2500)
   }
 
-  const handleApply = (theme) => {
+  const handleApply = async (theme) => {
     try {
-      applyThemeToActiveProfile(theme)
+      await applyThemeToActiveProfile(theme)
       showToast(t('theme_applied') || 'Theme applied!')
       setTimeout(() => navigate('/customize'), 1000)
     } catch (err) {
@@ -80,9 +81,10 @@ function SavedProfiles() {
     }
   }
 
-  const handleDelete = (themeId) => {
-    deleteSavedTheme(themeId)
-    setSavedThemes(prev => prev.filter(theme => theme.id !== themeId))
+  const handleDelete = async (themeId) => {
+    await deleteSavedTheme(themeId)
+    const updated = await getSavedThemes()
+    setSavedThemes(updated)
     showToast(t('theme_removed') || 'Theme removed', 'success')
   }
 

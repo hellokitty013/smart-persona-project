@@ -13,19 +13,20 @@ export default function ReportManagement() {
         setCurrentUser(getCurrentUser())
     }, [])
 
-    const loadReports = () => {
-        setReports(getReports())
+    const loadReports = async () => {
+        const data = await getReports()
+        setReports(data)
     }
 
-    const handleStatusChange = (id, newStatus) => {
-        updateReportStatus(id, newStatus)
-        loadReports()
+    const handleStatusChange = async (id, newStatus) => {
+        await updateReportStatus(id, newStatus)
+        await loadReports()
     }
 
-    const handleDelete = (id) => {
+    const handleDelete = async (id) => {
         if (window.confirm('Delete this report?')) {
-            deleteReport(id)
-            loadReports()
+            await deleteReport(id)
+            await loadReports()
         }
     }
 

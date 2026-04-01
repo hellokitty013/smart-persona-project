@@ -1,128 +1,98 @@
-// Profile View Analytics
-// Track profile views and visitor analytics
+// Profile View Analytics — Supabase backend
+import { supabase } from '../supabaseClient'
 
-const PROFILE_VIEWS_KEY = 'profile_views'
-const MY_PROFILE_VIEWS_KEY = 'my_profile_views'
-
-// Record a view for a profile
-export function recordProfileView(profileId, viewerUsername = 'anonymous') {
+export async function recordProfileView(profileId, viewerUsername = 'anonymous') {
   try {
-    const views = getAllProfileViews()
-    
-    const viewRecord = {
-      profileId,
-      viewerUsername,
-      timestamp: new Date().toISOString(),
-      date: new Date().toLocaleDateString()
-    }
-    
-    views.push(viewRecord)
-    
-    // Keep only last 1000 views to prevent localStorage overflow
-    if (views.length > 1000) {
-      views.splice(0, views.length - 1000)
-    }
-    
-    localStorage.setItem(PROFILE_VIEWS_KEY, JSON.stringify(views))
+    await supabase.from('profile_views').insert({
+      profile_id: profileId,
+      viewer_username: viewerUsername,
+      viewed_at: new Date().toISOString()
+    })
     return true
   } catch (err) {
-    console.error('Failed to record profile view:', err)
+    console.error('recordProfileView:', err)
     return false
   }
 }
 
-// Get all profile views
-export function getAllProfileViews() {
-  try {
-    const raw = localStorage.getItem(PROFILE_VIEWS_KEY)
-    return raw ? JSON.parse(raw) : []
-  } catch (err) {
-    console.error('Failed to get profile views:', err)
-    return []
-  }
+export async function getProfileViews(profileId) {
+  const { data, error } = await supabase
+    .from('profile_views')
+    .select('*')
+    .eq('profile_id', profileId)
+    .order('viewed_at', { ascending: false })
+  if (error) { console.error('getProfileViews:', error); return [] }
+  return data || []
 }
 
-// Get views for a specific profile
-export function getProfileViews(profileId) {
-  const allViews = getAllProfileViews()
-  return allViews.filter(v => v.profileId === profileId)
+export async function getProfileViewCount(profileId) {
+  const { count, error } = await supabase
+    .from('profile_views')
+    .select('*', { count: 'exact', head: true })
+    .eq('profile_id', profileId)
+  if (error) { console.error('getProfileViewCount:', error); return 0 }
+  return count || 0
 }
 
-// Get view count for a profile
-export function getProfileViewCount(profileId) {
-  return getProfileViews(profileId).length
+export async function getUniqueViewersCount(profileId) {
+  const views = await getProfileViews(profileId)
+  return new Set(views.map(v => v.viewer_username)).size
 }
 
-// Get unique viewers count
-export function getUniqueViewersCount(profileId) {
-  const views = getProfileViews(profileId)
-  const uniqueViewers = new Set(views.map(v => v.viewerUsername))
-  return uniqueViewers.size
+export async function getRecentViews(profileId, days = 7) {
+  const since = new Date()
+  since.setDate(since.getDate() - days)
+  const { data, error } = await supabase
+    .from('profile_views')
+    .select('*')
+    .eq('profile_id', profileId)
+    .gte('viewed_at', since.toISOString())
+  if (error) { console.error('getRecentViews:', error); return [] }
+  return data || []
 }
 
-// Get views by date range
-export function getViewsByDateRange(profileId, startDate, endDate) {
-  const views = getProfileViews(profileId)
-  const start = new Date(startDate)
-  const end = new Date(endDate)
-  
-  return views.filter(v => {
-    const viewDate = new Date(v.timestamp)
-    return viewDate >= start && viewDate <= end
-  })
-}
-
-// Get views for last N days
-export function getRecentViews(profileId, days = 7) {
-  const endDate = new Date()
-  const startDate = new Date()
-  startDate.setDate(startDate.getDate() - days)
-  
-  return getViewsByDateRange(profileId, startDate, endDate)
-}
-
-// Get views grouped by date
-export function getViewsByDate(profileId) {
-  const views = getProfileViews(profileId)
-  const viewsByDate = {}
-  
+export async function getViewsByDate(profileId) {
+  const views = await getProfileViews(profileId)
+  const byDate = {}
   views.forEach(v => {
-    const date = v.date
-    if (!viewsByDate[date]) {
-      viewsByDate[date] = []
-    }
-    viewsByDate[date].push(v)
+    const date = new Date(v.viewed_at).toLocaleDateString()
+    if (!byDate[date]) byDate[date] = []
+    byDate[date].push(v)
   })
-  
-  return viewsByDate
+  return byDate
 }
 
-// Get analytics summary for a profile
-export function getProfileAnalytics(profileId) {
-  const allViews = getProfileViews(profileId)
+export async function getProfileAnalytics(profileId) {
+  const [allViews, last7, last30] = await Promise.all([
+    getProfileViews(profileId),
+    getRecentViews(profileId, 7),
+    getRecentViews(profileId, 30)
+  ])
+
   const today = new Date().toLocaleDateString()
-  const todayViews = allViews.filter(v => v.date === today)
-  const last7Days = getRecentViews(profileId, 7)
-  const last30Days = getRecentViews(profileId, 30)
-  
+  const todayViews = allViews.filter(v => new Date(v.viewed_at).toLocaleDateString() === today)
+  const byDate = {}
+  allViews.forEach(v => {
+    const date = new Date(v.viewed_at).toLocaleDateString()
+    if (!byDate[date]) byDate[date] = []
+    byDate[date].push(v)
+  })
+
   return {
     totalViews: allViews.length,
-    uniqueViewers: getUniqueViewersCount(profileId),
+    uniqueViewers: new Set(allViews.map(v => v.viewer_username)).size,
     todayViews: todayViews.length,
-    last7DaysViews: last7Days.length,
-    last30DaysViews: last30Days.length,
-    viewsByDate: getViewsByDate(profileId)
+    last7DaysViews: last7.length,
+    last30DaysViews: last30.length,
+    viewsByDate: byDate
   }
 }
 
-// Clear all views (admin function)
-export function clearAllViews() {
-  localStorage.removeItem(PROFILE_VIEWS_KEY)
+export async function clearProfileViews(profileId) {
+  await supabase.from('profile_views').delete().eq('profile_id', profileId)
 }
 
-// Clear views for a specific profile
-export function clearProfileViews(profileId) {
-  const allViews = getAllProfileViews()
-  const filtered = allViews.filter(v => v.profileId !== profileId)
-  localStorage.setItem(PROFILE_VIEWS_KEY, JSON.stringify(filtered))
+export async function clearAllViews() {
+  await supabase.from('profile_views').delete().neq('id', '')
 }
+

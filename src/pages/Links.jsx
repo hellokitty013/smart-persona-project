@@ -31,21 +31,23 @@ function Links() {
   }
 
   useEffect(() => {
-    try {
-      const activeProfile = getActiveProfile()
-      if (activeProfile) {
-        setActiveProfileId(activeProfile.id)
-        if (activeProfile.data.socialLinks) {
-          setLinks(activeProfile.data.socialLinks)
+    const loadLinks = async () => {
+      try {
+        const activeProfile = await getActiveProfile()
+        if (activeProfile) {
+          setActiveProfileId(activeProfile.id)
+          if (activeProfile.data.socialLinks) {
+            setLinks(activeProfile.data.socialLinks)
+          }
+        } else {
+          const raw = localStorage.getItem('socialLinks')
+          if (raw) setLinks(JSON.parse(raw))
         }
-      } else {
-        // Fallback to old localStorage
-        const raw = localStorage.getItem('socialLinks')
-        if (raw) setLinks(JSON.parse(raw))
+      } catch (e) {
+        console.error('load social links', e)
       }
-    } catch (e) {
-      console.error('load social links', e)
     }
+    loadLinks()
   }, [])
 
   const openModal = (social) => {
@@ -63,20 +65,18 @@ function Links() {
     openModal(social)
   }
 
-  const handleAdd = (social, url) => {
+  const handleAdd = async (social, url) => {
     const next = { ...links, [social]: url }
     setLinks(next)
     
-    // Save to active profile
     if (activeProfileId) {
       try {
-        updateProfile(activeProfileId, { socialLinks: next })
+        await updateProfile(activeProfileId, { socialLinks: next })
       } catch (e) {
         console.error('Failed to update profile with social links', e)
       }
     }
     
-    // Also save to localStorage for backward compatibility
     try { 
       localStorage.setItem('socialLinks', JSON.stringify(next)) 
     } catch (e) { 

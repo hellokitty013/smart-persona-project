@@ -64,7 +64,7 @@ function Dashboard() {
     }
   }
 
-  const hydrateRecentActivity = (profileRecord) => {
+  const hydrateRecentActivity = async (profileRecord) => {
     const storedActivity = profileRecord?.data?.recentActivity
     if (storedActivity && storedActivity.length > 0) {
       setRecentActivity(storedActivity)
@@ -78,7 +78,7 @@ function Dashboard() {
         const parsed = JSON.parse(legacyActivity)
         setRecentActivity(parsed)
         if (profileRecord?.id) {
-          updateProfessionalProfile(profileRecord.id, { recentActivity: parsed })
+          await updateProfessionalProfile(profileRecord.id, { recentActivity: parsed })
         }
         return
       }
@@ -95,7 +95,7 @@ function Dashboard() {
     localStorage.setItem('recent_activity', JSON.stringify(fallbackActivity))
 
     if (profileRecord?.id) {
-      updateProfessionalProfile(profileRecord.id, { recentActivity: fallbackActivity })
+      await updateProfessionalProfile(profileRecord.id, { recentActivity: fallbackActivity })
     }
   }
 
@@ -104,31 +104,34 @@ function Dashboard() {
   const userIsAdmin = user?.role === 'admin'
 
   useEffect(() => {
-    const user = getCurrentUser()
-    if (!user) {
-      setShowLoginModal(true)
-      return
-    }
-
-    try {
-      let professionalProfile = getCurrentUserProfessionalProfile()
-      if (!professionalProfile) {
-        professionalProfile = createProfessionalProfile(user.username)
+    const load = async () => {
+      const user = getCurrentUser()
+      if (!user) {
+        setShowLoginModal(true)
+        return
       }
 
-      if (professionalProfile) {
-        const data = professionalProfile.data || {}
-        setProfile(data)
-        setProfileStats(calculateProfileStats(data))
+      try {
+        let professionalProfile = await getCurrentUserProfessionalProfile()
+        if (!professionalProfile) {
+          professionalProfile = await createProfessionalProfile(user.username)
+        }
 
-        const analyticsData = getProfileAnalytics(professionalProfile.id)
-        setAnalytics(analyticsData)
+        if (professionalProfile) {
+          const data = professionalProfile.data || {}
+          setProfile(data)
+          setProfileStats(calculateProfileStats(data))
 
-        hydrateRecentActivity(professionalProfile)
+          const analyticsData = await getProfileAnalytics(professionalProfile.id)
+          setAnalytics(analyticsData)
+
+          await hydrateRecentActivity(professionalProfile)
+        }
+      } catch (err) {
+        console.warn('Failed to load professional profile', err)
       }
-    } catch (err) {
-      console.warn('Failed to load professional profile', err)
     }
+    load()
   }, [])
 
   return (

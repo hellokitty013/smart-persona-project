@@ -13,15 +13,17 @@ function ProfileCard({ profileData, username: usernameProp, name: nameProp, titl
       setProfile(profileData)
       return
     }
-
-    try {
-      const activeProfile = getActiveProfile()
-      if (activeProfile && activeProfile.data) {
-        setProfile(activeProfile.data)
+    const load = async () => {
+      try {
+        const activeProfile = await getActiveProfile()
+        if (activeProfile && activeProfile.data) {
+          setProfile(activeProfile.data)
+        }
+      } catch (e) {
+        setProfile(null)
       }
-    } catch (e) {
-      setProfile(null)
     }
+    load()
   }, [profileData])
 
   useEffect(() => {

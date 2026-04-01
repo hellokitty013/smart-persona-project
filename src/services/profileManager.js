@@ -1,253 +1,243 @@
-// Profile Management System for Multiple Profile Versions
+// Profile Management System — Supabase backend
+import { supabase } from '../supabaseClient'
 import { applyTemplate } from '../config/profileTemplates'
 
-const PROFILES_KEY = 'user_profiles' // All profile versions
-const ACTIVE_PROFILE_KEY = 'active_profile_id' // Currently selected profile
+const ACTIVE_PROFILE_KEY = 'active_profile_id'
 
-// Get all profiles for current user
-export function getAllProfiles() {
-  try {
-    const raw = localStorage.getItem(PROFILES_KEY)
-    return raw ? JSON.parse(raw) : []
-  } catch (err) {
-    console.error('Failed to get profiles:', err)
-    return []
-  }
+// ─── Active profile (local UI preference) ────────────────────────────────────
+
+export function getActiveProfileId() {
+  try { return localStorage.getItem(ACTIVE_PROFILE_KEY) || null } catch { return null }
 }
 
-// Alias for getAllProfiles
+export function setActiveProfile(profileId) {
+  try { localStorage.setItem(ACTIVE_PROFILE_KEY, profileId) } catch {}
+}
+
+// ─── CRUD ─────────────────────────────────────────────────────────────────────
+
+export async function getAllProfiles() {
+  const { data: { session } } = await supabase.auth.getSession(); const user = session?.user
+  if (!user) return []
+  const { data, error } = await supabase
+    .from('profile_cards')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: true })
+  if (error) { console.error('getAllProfiles:', error); return [] }
+  return data || []
+}
+
 export const getProfiles = getAllProfiles
 
-// Get active profile ID
-export function getActiveProfileId() {
-  try {
-    return localStorage.getItem(ACTIVE_PROFILE_KEY) || null
-  } catch {
-    return null
-  }
+export async function getProfileById(profileId) {
+  const { data, error } = await supabase
+    .from('profile_cards')
+    .select('*')
+    .eq('id', profileId)
+    .single()
+  if (error) { console.error('getProfileById:', error); return null }
+  return data
 }
 
-// Get specific profile by ID
-export function getProfileById(profileId) {
-  const profiles = getAllProfiles()
-  return profiles.find(p => p.id === profileId) || null
-}
-
-// Get active profile
-export function getActiveProfile() {
+export async function getActiveProfile() {
   const activeId = getActiveProfileId()
-  if (!activeId) {
-    // Return first profile or null
-    const profiles = getAllProfiles()
-    return profiles.length > 0 ? profiles[0] : null
+  if (activeId) {
+    const profile = await getProfileById(activeId)
+    if (profile) return profile
   }
-  return getProfileById(activeId)
+  const profiles = await getAllProfiles()
+  return profiles.length > 0 ? profiles[0] : null
 }
 
-// Create new profile
-export function createProfile({ type, name }) {
-  const profiles = getAllProfiles()
-  
-  // Use new template system
+export async function createProfile({ type, name }) {
+  const { data: { session } } = await supabase.auth.getSession(); const user = session?.user
+  if (!user) throw new Error('Not authenticated')
+
   const templateData = applyTemplate(type)
-  
+  const id = `profile_${Date.now()}`
+
   const newProfile = {
-    id: `profile_${Date.now()}`,
-    type: type || 'personal', // professional, freelance, personal, etc.
+    id,
+    user_id: user.id,
+    type: type || 'personal',
     name: name || `${type} Profile`,
-    createdAt: new Date().toISOString(),
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
     data: {
       username: '',
-      ...templateData, // Apply all template settings
+      ...templateData,
       hasAudio: false,
       audioFileName: '',
       audioStartTime: 0,
       audioEndTime: 0,
       isPublic: true,
       socialLinks: {},
-      // New fields for LinkedIn-style profiles
       jobTitle: '',
       location: '',
       experienceYears: 0,
-      skills: [], // Array of skill strings
-      experience: [], // Array of {position, company, location, startDate, endDate, description, bullets[]}
-      education: [] // Array of {degree, school, location, startDate, endDate, coursework}
+      skills: [],
+      experience: [],
+      education: []
     }
   }
-  
-  profiles.push(newProfile)
-  localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles))
-  
-  // Set as active if it's the first profile
-  if (profiles.length === 1) {
-    setActiveProfile(newProfile.id)
-  }
-  
-  return newProfile
+
+  const { data, error } = await supabase
+    .from('profile_cards')
+    .insert(newProfile)
+    .select()
+    .single()
+  if (error) { console.error('createProfile:', error); throw error }
+
+  const all = await getAllProfiles()
+  if (all.length === 1) setActiveProfile(data.id)
+
+  return data
 }
 
-// Update profile
-export function updateProfile(profileId, updates) {
-  const profiles = getAllProfiles()
-  const index = profiles.findIndex(p => p.id === profileId)
-  
-  if (index === -1) {
-    throw new Error('Profile not found')
-  }
-  
-  // Merge updates into data object
-  profiles[index] = {
-    ...profiles[index],
-    data: {
-      ...profiles[index].data,
-      ...updates
-    },
-    updatedAt: new Date().toISOString()
-  }
-  
-  localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles))
-  return profiles[index]
-}
+export async function updateProfile(profileId, updates) {
+  const { data: { session } } = await supabase.auth.getSession(); const user = session?.user
+  if (!user) throw new Error('Not authenticated')
 
-// Delete profile
-export function deleteProfile(profileId) {
-  const profiles = getAllProfiles()
-  const filtered = profiles.filter(p => p.id !== profileId)
-  
-  localStorage.setItem(PROFILES_KEY, JSON.stringify(filtered))
-  
-  // If deleted profile was active, set first profile as active
-  const activeId = getActiveProfileId()
-  if (activeId === profileId && filtered.length > 0) {
-    setActiveProfile(filtered[0].id)
-  }
-  
-  return filtered
-}
+  const current = await getProfileById(profileId)
+  if (!current) throw new Error('Profile not found')
 
-// Set active profile
-export function setActiveProfile(profileId) {
-  localStorage.setItem(ACTIVE_PROFILE_KEY, profileId)
-}
-
-// Migrate old profile data to new system
-export function migrateOldProfile() {
-  const profiles = getAllProfiles()
-  if (profiles.length > 0) {
-    return // Already migrated
-  }
-  
-  // Check for old profile data
-  const oldProfile = localStorage.getItem('user_profile')
-  if (!oldProfile) {
-    return // No old data
-  }
-  
-  try {
-    const data = JSON.parse(oldProfile)
-    const newProfile = {
-      id: `profile_${Date.now()}`,
-      type: 'personal',
-      name: 'Main Profile',
-      createdAt: new Date().toISOString(),
-      data: {
-        ...data,
-        layout: 'default'
-      }
-    }
-    
-    localStorage.setItem(PROFILES_KEY, JSON.stringify([newProfile]))
-    setActiveProfile(newProfile.id)
-    
-    console.log('Migrated old profile to new system')
-  } catch (err) {
-    console.error('Failed to migrate old profile:', err)
-  }
-}
-
-// Initialize profiles for new users
-export function initializeProfiles(username) {
-  const profiles = getAllProfiles()
-  if (profiles.length === 0) {
-    // Create default profile
-    const defaultProfile = createProfile({
-      type: 'personal',
-      name: 'Main Profile'
+  const { data, error } = await supabase
+    .from('profile_cards')
+    .update({
+      data: { ...current.data, ...updates },
+      updated_at: new Date().toISOString()
     })
-    
-    // Update with username
-    updateProfile(defaultProfile.id, { username })
+    .eq('id', profileId)
+    .eq('user_id', user.id)
+    .select()
+    .single()
+  if (error) { console.error('updateProfile:', error); throw error }
+  return data
+}
+
+export async function deleteProfile(profileId) {
+  const { data: { session } } = await supabase.auth.getSession(); const user = session?.user
+  if (!user) throw new Error('Not authenticated')
+
+  const { error } = await supabase
+    .from('profile_cards')
+    .delete()
+    .eq('id', profileId)
+    .eq('user_id', user.id)
+  if (error) { console.error('deleteProfile:', error); throw error }
+
+  if (getActiveProfileId() === profileId) {
+    localStorage.removeItem(ACTIVE_PROFILE_KEY)
+  }
+
+  return await getAllProfiles()
+}
+
+// ─── Migration (localStorage → Supabase) ─────────────────────────────────────
+
+export async function migrateOldProfile() {
+  const { data: { session } } = await supabase.auth.getSession(); const user = session?.user
+  if (!user) return
+
+  const existing = await getAllProfiles()
+  if (existing.length > 0) return
+
+  try {
+    const oldProfiles = localStorage.getItem('user_profiles')
+    if (oldProfiles) {
+      const parsed = JSON.parse(oldProfiles)
+      for (const p of parsed) {
+        const id = `profile_${Date.now()}_${Math.random().toString(36).slice(2)}`
+        await supabase.from('profile_cards').insert({
+          id,
+          user_id: user.id,
+          type: p.type || 'personal',
+          name: p.name || 'Profile',
+          data: p.data || {},
+          created_at: p.createdAt || new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+      }
+      return
+    }
+
+    const oldProfile = localStorage.getItem('user_profile')
+    if (oldProfile) {
+      const data = JSON.parse(oldProfile)
+      const created = await createProfile({ type: 'personal', name: 'Main Profile' })
+      await updateProfile(created.id, data)
+    }
+  } catch (err) {
+    console.error('migrateOldProfile:', err)
   }
 }
 
-// Get all public profiles (for Explore page)
-export function getPublicProfiles() {
-  const profiles = getAllProfiles()
-  return profiles.filter(p => p.data?.isPublic === true)
+// ─── Initialize / Helpers ─────────────────────────────────────────────────────
+
+export async function initializeProfiles(username) {
+  const profiles = await getAllProfiles()
+  if (profiles.length === 0) {
+    const defaultProfile = await createProfile({ type: 'personal', name: 'Main Profile' })
+    await updateProfile(defaultProfile.id, { username })
+  }
 }
 
-// Search profiles by query
-export function searchProfiles(query, filters = {}) {
-  let profiles = getPublicProfiles()
-  
-  // Text search (name, job title, skills, location)
+export async function getPublicProfiles() {
+  const { data, error } = await supabase
+    .from('profile_cards')
+    .select('*')
+  if (error) { console.error('getPublicProfiles:', error); return [] }
+  return (data || []).filter(p => p.data?.isPublic === true)
+}
+
+export async function searchProfiles(query, filters = {}) {
+  let profiles = await getPublicProfiles()
+
   if (query && query.trim()) {
     const q = query.toLowerCase()
     profiles = profiles.filter(p => {
-      const data = p.data || {}
+      const d = p.data || {}
       return (
-        data.displayName?.toLowerCase().includes(q) ||
-        data.username?.toLowerCase().includes(q) ||
-        data.jobTitle?.toLowerCase().includes(q) ||
-        data.location?.toLowerCase().includes(q) ||
-        data.description?.toLowerCase().includes(q) ||
-        data.skills?.some(skill => skill.toLowerCase().includes(q))
+        d.displayName?.toLowerCase().includes(q) ||
+        d.username?.toLowerCase().includes(q) ||
+        d.jobTitle?.toLowerCase().includes(q) ||
+        d.location?.toLowerCase().includes(q) ||
+        d.description?.toLowerCase().includes(q) ||
+        d.skills?.some(s => s.toLowerCase().includes(q))
       )
     })
   }
-  
-  // Filter by skills
-  if (filters.skills && filters.skills.length > 0) {
+
+  if (filters.skills?.length > 0) {
     profiles = profiles.filter(p => {
-      const profileSkills = (p.data?.skills || []).map(s => s.toLowerCase())
-      return filters.skills.some(skill => 
-        profileSkills.includes(skill.toLowerCase())
-      )
+      const sk = (p.data?.skills || []).map(s => s.toLowerCase())
+      return filters.skills.some(s => sk.includes(s.toLowerCase()))
     })
   }
-  
-  // Filter by job title/role
+
   if (filters.jobTitle) {
     const role = filters.jobTitle.toLowerCase()
-    profiles = profiles.filter(p => 
-      p.data?.jobTitle?.toLowerCase().includes(role)
-    )
+    profiles = profiles.filter(p => p.data?.jobTitle?.toLowerCase().includes(role))
   }
-  
-  // Filter by location
+
   if (filters.location) {
     const loc = filters.location.toLowerCase()
-    profiles = profiles.filter(p => 
-      p.data?.location?.toLowerCase().includes(loc)
-    )
+    profiles = profiles.filter(p => p.data?.location?.toLowerCase().includes(loc))
   }
-  
-  // Filter by experience level
+
   if (filters.experienceLevel) {
     profiles = profiles.filter(p => {
       const years = p.data?.experienceYears || 0
-      switch(filters.experienceLevel) {
-        case 'entry':
-          return years >= 0 && years <= 2
-        case 'mid':
-          return years >= 3 && years <= 5
-        case 'senior':
-          return years >= 6
-        default:
-          return true
+      switch (filters.experienceLevel) {
+        case 'entry': return years >= 0 && years <= 2
+        case 'mid': return years >= 3 && years <= 5
+        case 'senior': return years >= 6
+        default: return true
       }
     })
   }
-  
+
   return profiles
 }
+

@@ -70,12 +70,12 @@ function EditProfessionalProfile() {
     loadProfile();
   }, []);
 
-  const loadProfile = () => {
+  const loadProfile = async () => {
     const user = getCurrentUser();
-    let professionalProfile = getCurrentUserProfessionalProfile();
+    let professionalProfile = await getCurrentUserProfessionalProfile();
     
     if (!professionalProfile) {
-      professionalProfile = createProfessionalProfile(user.username);
+      professionalProfile = await createProfessionalProfile(user.username);
     }
 
     if (professionalProfile) {
@@ -94,10 +94,10 @@ function EditProfessionalProfile() {
     }
   };
 
-  const handleSaveBasicInfo = () => {
+  const handleSaveBasicInfo = async () => {
     if (!profileId) return;
 
-    updateProfessionalProfile(profileId, {
+    await updateProfessionalProfile(profileId, {
       displayName,
       jobTitle,
       location,
@@ -135,7 +135,7 @@ function EditProfessionalProfile() {
     setShowExperienceModal(true);
   };
 
-  const handleSaveExperience = () => {
+  const handleSaveExperience = async () => {
     if (!profileId) return;
 
     const bullets = expBullets.split('\n').filter(b => b.trim());
@@ -150,19 +150,19 @@ function EditProfessionalProfile() {
     };
 
     if (editingExperience) {
-      updateExperience(profileId, editingExperience.id, experienceData);
+      await updateExperience(profileId, editingExperience.id, experienceData);
     } else {
-      addExperience(profileId, experienceData);
+      await addExperience(profileId, experienceData);
     }
 
     setShowExperienceModal(false);
-    loadProfile();
+    await loadProfile();
   };
 
-  const handleDeleteExperience = (expId) => {
+  const handleDeleteExperience = async (expId) => {
     if (window.confirm('Are you sure you want to delete this experience?')) {
-      deleteExperience(profileId, expId);
-      loadProfile();
+      await deleteExperience(profileId, expId);
+      await loadProfile();
     }
   };
 
@@ -189,7 +189,7 @@ function EditProfessionalProfile() {
     setShowEducationModal(true);
   };
 
-  const handleSaveEducation = () => {
+  const handleSaveEducation = async () => {
     if (!profileId) return;
 
     const educationData = {
@@ -202,34 +202,34 @@ function EditProfessionalProfile() {
     };
 
     if (editingEducation) {
-      updateEducation(profileId, editingEducation.id, educationData);
+      await updateEducation(profileId, editingEducation.id, educationData);
     } else {
-      addEducation(profileId, educationData);
+      await addEducation(profileId, educationData);
     }
 
     setShowEducationModal(false);
-    loadProfile();
+    await loadProfile();
   };
 
-  const handleDeleteEducation = (eduId) => {
+  const handleDeleteEducation = async (eduId) => {
     if (window.confirm('Are you sure you want to delete this education?')) {
-      deleteEducation(profileId, eduId);
-      loadProfile();
+      await deleteEducation(profileId, eduId);
+      await loadProfile();
     }
   };
 
   // Skills handlers
-  const handleAddSkill = () => {
+  const handleAddSkill = async () => {
     if (newSkill.trim() && !skills.includes(newSkill.trim())) {
-      addSkill(profileId, newSkill.trim());
+      await addSkill(profileId, newSkill.trim());
       setNewSkill('');
-      loadProfile();
+      await loadProfile();
     }
   };
 
-  const handleRemoveSkill = (skill) => {
-    removeSkill(profileId, skill);
-    loadProfile();
+  const handleRemoveSkill = async (skill) => {
+    await removeSkill(profileId, skill);
+    await loadProfile();
   };
 
   if (!profile) {
