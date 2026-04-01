@@ -90,9 +90,7 @@ export async function registerUser({ username, email, password, firstName, lastN
 
 export async function login(identifier, password) {
   try {
-    // Supabase Auth typically uses email. If identifier is a username, 
-    // you might need a public 'users' table to resolve email from username.
-    // For now, assuming identifier is email.
+    // Supabase Auth typically uses email.
     const { data, error } = await supabase.auth.signInWithPassword({
       email: identifier,
       password: password,
