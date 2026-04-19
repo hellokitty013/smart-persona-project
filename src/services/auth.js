@@ -69,6 +69,15 @@ export async function registerUser({ username, email, password, firstName, lastN
 
     const user = data.user;
     if (user) {
+      // บันทึก username → email ลงตาราง user_profiles เพื่อให้ login ด้วย username ได้
+      await supabase.from('user_profiles').upsert({
+        id: user.id,
+        username,
+        email: user.email,
+        first_name: firstName || '',
+        last_name: lastName || '',
+      }, { onConflict: 'id' });
+
       setSession({ username, email: user.email, token: user.aud });
       writeJSON(PROFILE_KEY, { 
         username, 
@@ -90,10 +99,39 @@ export async function registerUser({ username, email, password, firstName, lastN
 
 export async function login(identifier, password) {
   try {
-    // Supabase Auth typically uses email.
+    // ถ้าเป็น username (ไม่มี @) ให้หา email จากตาราง user_profiles
+    let email = identifier;
+
+    if (!identifier.includes('@')) {
+      // ค้นหา email จาก username ใน professional_profiles
+      const { data: profileData } = await supabase
+        .from('professional_profiles')
+        .select('user_id, username')
+        .eq('username', identifier.trim())
+        .maybeSingle();
+
+      if (profileData?.user_id) {
+        // ดึง email จาก auth.users ผ่าน user_id โดยใช้ตาราง user_emails (ถ้ามี)
+        // fallback: ให้ user_metadata เก็บ email ไว้
+        const { data: userData } = await supabase
+          .from('user_profiles')
+          .select('email')
+          .eq('id', profileData.user_id)
+          .maybeSingle();
+
+        if (userData?.email) {
+          email = userData.email;
+        } else {
+          return { ok: false, message: 'ไม่พบ Username นี้ในระบบ กรุณาใช้ Email แทน' };
+        }
+      } else {
+        return { ok: false, message: 'ไม่พบ Username นี้ในระบบ กรุณาใช้ Email แทน' };
+      }
+    }
+
     const { data, error } = await supabase.auth.signInWithPassword({
-      email: identifier,
-      password: password,
+      email,
+      password,
     });
 
     if (error) return { ok: false, message: error.message };
