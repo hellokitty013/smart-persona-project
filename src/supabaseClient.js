@@ -1,4 +1,4 @@
-// src/supabaseClient.js
+
 import { createClient } from '@supabase/supabase-js'
 
 // ดึงค่า URL และ Key จากไฟล์ .env เพื่อความปลอดภัย
