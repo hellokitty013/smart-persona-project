@@ -12,6 +12,10 @@ export default function UserManagement() {
     const [editingUser, setEditingUser] = useState(null)
     const [editFormData, setEditFormData] = useState({ firstName: '', lastName: '', email: '', role: 'user' })
 
+    // Change Password Modal State
+    const [showPasswordModal, setShowPasswordModal] = useState(false)
+    const [passwordData, setPasswordData] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
+
     useEffect(() => {
         loadUsers()
         setCurrentUser(getCurrentUser())
@@ -51,15 +55,60 @@ export default function UserManagement() {
     }
 
     const handleResetPassword = async (username) => {
-        const newPass = 'password123'
-        const allUsers = await getUsers()
-        const idx = allUsers.findIndex(u => u.username === username)
-        if (idx !== -1) {
-            allUsers[idx].password = newPass
-            localStorage.setItem('spa_users', JSON.stringify(allUsers))
-            setMessage(`Password for ${username} reset to: ${newPass}`)
-        } else {
-            setError('User not found')
+        const newPass = prompt('Enter new password for ' + username + ':');
+        if (!newPass) return;
+
+        try {
+            const res = await fetch('http://localhost:5000/api/admin/reset-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, newPassword: newPass })
+            });
+
+            const result = await res.json();
+            if (result.ok) {
+                setMessage(`Password for ${username} reset to: ${newPass}`);
+                loadUsers();
+            } else {
+                setError(result.message || 'Failed to reset password');
+            }
+        } catch (e) {
+            setError('Error: ' + e.message);
+        }
+    }
+
+    const handleChangePassword = async () => {
+        if (!passwordData.currentPassword || !passwordData.newPassword) {
+            setError('Please fill all password fields');
+            return;
+        }
+
+        if (passwordData.newPassword !== passwordData.confirmPassword) {
+            setError('New passwords do not match');
+            return;
+        }
+
+        try {
+            const res = await fetch('http://localhost:5000/api/admin/change-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    username: currentUser.username,
+                    currentPassword: passwordData.currentPassword,
+                    newPassword: passwordData.newPassword
+                })
+            });
+
+            const result = await res.json();
+            if (result.ok) {
+                setMessage('Password changed successfully');
+                setShowPasswordModal(false);
+                setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+            } else {
+                setError(result.message || 'Failed to change password');
+            }
+        } catch (e) {
+            setError('Error: ' + e.message);
         }
     }
 
@@ -203,7 +252,14 @@ export default function UserManagement() {
                                                                 </div>
                                                             )}
                                                             {user.username === currentUser?.username && (
-                                                                <span className="text-muted fst-italic">Current User</span>
+                                                                <div className="btn-group" role="group">
+                                                                    <button 
+                                                                        className="btn btn-sm btn-primary"
+                                                                        onClick={() => setShowPasswordModal(true)}
+                                                                    >
+                                                                        <i className="fas fa-key"></i> Change Password
+                                                                    </button>
+                                                                </div>
                                                             )}
                                                         </td>
                                                     </tr>
@@ -275,6 +331,53 @@ export default function UserManagement() {
                             <div className="modal-footer">
                                 <button type="button" className="btn btn-secondary" onClick={() => setEditingUser(null)}>Cancel</button>
                                 <button type="button" className="btn btn-primary" onClick={handleEditSave}>Save Changes</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Change Password Modal */}
+            {showPasswordModal && (
+                <div className="modal fade show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                    <div className="modal-dialog">
+                        <div className="modal-content">
+                            <div className="modal-header">
+                                <h5 className="modal-title">Change Password</h5>
+                                <button type="button" className="btn-close" onClick={() => setShowPasswordModal(false)}></button>
+                            </div>
+                            <div className="modal-body">
+                                <div className="mb-3">
+                                    <label className="form-label">Current Password</label>
+                                    <input
+                                        type="password"
+                                        className="form-control"
+                                        value={passwordData.currentPassword}
+                                        onChange={e => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                                    />
+                                </div>
+                                <div className="mb-3">
+                                    <label className="form-label">New Password</label>
+                                    <input
+                                        type="password"
+                                        className="form-control"
+                                        value={passwordData.newPassword}
+                                        onChange={e => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                                    />
+                                </div>
+                                <div className="mb-3">
+                                    <label className="form-label">Confirm New Password</label>
+                                    <input
+                                        type="password"
+                                        className="form-control"
+                                        value={passwordData.confirmPassword}
+                                        onChange={e => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+                            <div className="modal-footer">
+                                <button type="button" className="btn btn-secondary" onClick={() => setShowPasswordModal(false)}>Cancel</button>
+                                <button type="button" className="btn btn-primary" onClick={handleChangePassword}>Change Password</button>
                             </div>
                         </div>
                     </div>

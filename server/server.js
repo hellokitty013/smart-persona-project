@@ -543,10 +543,28 @@ app.post('/api/auth/register', async (req, res) => {
   try {
     const db = await readDb();
     
-    // Check if user exists
-    const existingUser = db.users.find(u => u.username === username || u.email === email);
-    if (existingUser) {
-      return res.status(400).json({ ok: false, message: 'Username or email already taken' });
+    // First check Supabase to avoid orphaned local entries
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabaseUrl = 'https://aonkndmgaqloeqmibeeh.supabase.co';
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Check if exists in Supabase
+    const { data: supabaseUser } = await supabase
+      .from('profiles')
+      .select('id')
+      .or(`username.eq.${username},email.eq.${email}`)
+      .maybeSingle();
+
+    if (supabaseUser) {
+      return res.status(400).json({ ok: false, message: 'Username or email already taken in system' });
+    }
+
+    // If not in Supabase but in local, clean up local (orphaned entry)
+    const orphanedIdx = db.users.findIndex(u => u.username === username || u.email === email);
+    if (orphanedIdx !== -1) {
+      db.users.splice(orphanedIdx, 1);
+      await writeDb(db);
     }
 
     const token = Math.random().toString(36).slice(2);
@@ -558,13 +576,31 @@ app.post('/api/auth/register', async (req, res) => {
       firstName: firstName || null,
       lastName: lastName || null,
       birthDate: birthDate || null,
-      role: 'user', // Default role for local JSON
+      role: 'user',
       token,
       createdAt: new Date().toISOString()
     };
 
+    // Save to local DB
     db.users.push(newUser);
     await writeDb(db);
+
+    // Also save to Supabase profiles table
+    const { error: supabaseError } = await supabase
+      .from('profiles')
+      .insert([{
+        username,
+        email,
+        password,
+        full_name: `${firstName || ''} ${lastName || ''}`.trim(),
+        role: 'user',
+        created_at: new Date().toISOString()
+      }]);
+
+    if (supabaseError) {
+      console.warn('Supabase insert warning:', supabaseError.message);
+      // Still return success if saved locally
+    }
 
     // Don't send password back in response
     const { password: _, ...userWithoutPassword } = newUser;
@@ -606,6 +642,23 @@ app.post('/api/auth/register', async (req, res) => {
  *       500:
  *         description: Internal server error
  */
+/**
+ * @swagger
+ * /api/auth/login:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Login user (checks local DB and Supabase)
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [identifier, password]
+ *             properties:
+ *               identifier: { type: string, description: 'Username or email' }
+ *               password: { type: string }
+ */
 app.post('/api/auth/login', async (req, res) => {
   const { identifier, password } = req.body;
   if (!identifier || !password) {
@@ -613,18 +666,179 @@ app.post('/api/auth/login', async (req, res) => {
   }
 
   try {
+    // Check local DB first
     const db = await readDb();
-    const user = db.users.find(u => (u.username === identifier || u.email === identifier) && u.password === password);
+    const localUser = db.users.find(u => (u.username === identifier || u.email === identifier) && u.password === password);
 
-    if (!user) {
-      return res.status(401).json({ ok: false, message: 'Invalid username/email or password' });
+    if (localUser) {
+      const { password: _, ...userWithoutPassword } = localUser;
+      return res.status(200).json({ ok: true, user: userWithoutPassword });
     }
 
-    const { password: _, ...userWithoutPassword } = user;
+    // Check Supabase profiles table
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabaseUrl = 'https://aonkndmgaqloeqmibeeh.supabase.co';
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Query Supabase
+    let { data: profileData } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('username', identifier)
+      .maybeSingle();
+
+    if (!profileData) {
+      const { data: emailData } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('email', identifier)
+        .maybeSingle();
+      profileData = emailData;
+    }
+
+    if (!profileData) {
+      return res.status(401).json({ ok: false, message: 'ไม่พบ Username หรือ Email นี้ในระบบ' });
+    }
+
+    if (profileData.password !== password) {
+      return res.status(401).json({ ok: false, message: 'รหัสผ่านไม่ถูกต้อง' });
+    }
+
+    // Success - return user without password
+    const { password: _, ...userWithoutPassword } = profileData;
     res.status(200).json({ ok: true, user: userWithoutPassword });
   } catch (error) {
     console.error('Login Error:', error);
-    res.status(500).json({ ok: false, message: 'Server error' });
+    res.status(500).json({ ok: false, message: 'Server error: ' + error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/admin/reset-password:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Admin resets user password
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [username, newPassword]
+ *             properties:
+ *               username: { type: string, description: 'Username to reset' }
+ *               newPassword: { type: string }
+ */
+app.post('/api/admin/reset-password', async (req, res) => {
+  const { username, newPassword } = req.body;
+  if (!username || !newPassword) {
+    return res.status(400).json({ ok: false, message: 'Missing fields' });
+  }
+
+  try {
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabaseUrl = 'https://aonkndmgaqloeqmibeeh.supabase.co';
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Check if user exists locally first
+    const db = await readDb();
+    const localUserIdx = db.users.findIndex(u => u.username === username);
+    
+    if (localUserIdx !== -1) {
+      db.users[localUserIdx].password = newPassword;
+      await writeDb(db);
+      return res.status(200).json({ ok: true, message: 'Password reset successfully' });
+    }
+
+    // Update in Supabase
+    const { error } = await supabase
+      .from('profiles')
+      .update({ password: newPassword })
+      .eq('username', username);
+
+    if (error) {
+      return res.status(400).json({ ok: false, message: 'User not found: ' + error.message });
+    }
+
+    res.status(200).json({ ok: true, message: 'Password reset successfully' });
+  } catch (error) {
+    console.error('Reset Password Error:', error);
+    res.status(500).json({ ok: false, message: 'Server error: ' + error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/admin/change-password:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Admin changes their own password
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [username, currentPassword, newPassword]
+ *             properties:
+ *               username: { type: string }
+ *               currentPassword: { type: string }
+ *               newPassword: { type: string }
+ */
+app.post('/api/admin/change-password', async (req, res) => {
+  const { username, currentPassword, newPassword } = req.body;
+  if (!username || !currentPassword || !newPassword) {
+    return res.status(400).json({ ok: false, message: 'Missing fields' });
+  }
+
+  try {
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabaseUrl = 'https://aonkndmgaqloeqmibeeh.supabase.co';
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Check locally first
+    const db = await readDb();
+    const localUserIdx = db.users.findIndex(u => u.username === username && u.password === currentPassword);
+    
+    if (localUserIdx !== -1) {
+      db.users[localUserIdx].password = newPassword;
+      await writeDb(db);
+      return res.status(200).json({ ok: true, message: 'Password changed successfully' });
+    }
+
+    // Check and update in Supabase
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('username', username)
+      .maybeSingle();
+
+    if (!profileData) {
+      return res.status(401).json({ ok: false, message: 'User not found' });
+    }
+
+    if (profileData.password !== currentPassword) {
+      return res.status(401).json({ ok: false, message: 'Current password is incorrect' });
+    }
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ password: newPassword })
+      .eq('username', username);
+
+    if (error) {
+      return res.status(400).json({ ok: false, message: 'Failed to update password' });
+    }
+
+    res.status(200).json({ ok: true, message: 'Password changed successfully' });
+  } catch (error) {
+    console.error('Change Password Error:', error);
+    res.status(500).json({ ok: false, message: 'Server error: ' + error.message });
   }
 });
 
@@ -749,6 +963,147 @@ app.delete('/api/users/:username', async (req, res) => {
   } catch (error) {
     console.error('Delete User Error:', error);
     res.status(500).json({ ok: false, message: 'Server error' });
+  }
+});
+
+// ─── Professional Profiles API ─────────────────────────────────────────────────
+
+const getSupabaseAdmin = async () => {
+  const { createClient } = await import('@supabase/supabase-js');
+  const supabaseUrl = 'https://aonkndmgaqloeqmibeeh.supabase.co';
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  return createClient(supabaseUrl, supabaseServiceKey);
+};
+
+// GET /api/profiles — get all profiles
+app.get('/api/profiles', async (req, res) => {
+  try {
+    const supabase = await getSupabaseAdmin();
+    const { data, error } = await supabase
+      .from('professional_profiles')
+      .select('*')
+      .order('created_at', { ascending: true });
+    if (error) return res.status(500).json({ ok: false, message: error.message });
+    res.json({ ok: true, data: data || [] });
+  } catch (err) {
+    res.status(500).json({ ok: false, message: err.message });
+  }
+});
+
+// GET /api/profiles/by-username/:username
+app.get('/api/profiles/by-username/:username', async (req, res) => {
+  try {
+    const supabase = await getSupabaseAdmin();
+    const { data, error } = await supabase
+      .from('professional_profiles')
+      .select('*')
+      .eq('username', req.params.username)
+      .maybeSingle();
+    if (error) return res.status(500).json({ ok: false, message: error.message });
+    res.json({ ok: true, data });
+  } catch (err) {
+    res.status(500).json({ ok: false, message: err.message });
+  }
+});
+
+// GET /api/profiles/by-id/:id
+app.get('/api/profiles/by-id/:id', async (req, res) => {
+  try {
+    const supabase = await getSupabaseAdmin();
+    const { data, error } = await supabase
+      .from('professional_profiles')
+      .select('*')
+      .eq('id', req.params.id)
+      .single();
+    if (error) return res.status(500).json({ ok: false, message: error.message });
+    res.json({ ok: true, data });
+  } catch (err) {
+    res.status(500).json({ ok: false, message: err.message });
+  }
+});
+
+// POST /api/profiles — create or get professional profile
+app.post('/api/profiles', async (req, res) => {
+  try {
+    const supabase = await getSupabaseAdmin();
+    const { username, user_id } = req.body;
+    if (!username) return res.status(400).json({ ok: false, message: 'username required' });
+
+    // Return existing if found
+    const { data: existing } = await supabase
+      .from('professional_profiles')
+      .select('*')
+      .eq('username', username)
+      .maybeSingle();
+    if (existing) return res.json({ ok: true, data: existing });
+
+    // Generate a UUID for user_id (Supabase requires UUID type)
+    const { randomUUID } = await import('crypto');
+    const newProfile = {
+      user_id: randomUUID(),
+      username,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      data: {
+        displayName: username,
+        jobTitle: '',
+        location: '',
+        avatar: `https://ui-avatars.com/api/?name=${username}&background=random`,
+        coverImage: '',
+        coverColor: '#0a66c2',
+        about: '',
+        experienceYears: 0,
+        skills: [],
+        experience: [],
+        education: [],
+        tagline: '',
+        followers: 0,
+        vheartLikes: 0,
+        following: 0,
+        contact: { email: '', phone: '', address: '', links: [] },
+        featuredItems: [],
+        recentActivity: [],
+        isPublic: true
+      }
+    };
+
+    const { data, error } = await supabase
+      .from('professional_profiles')
+      .insert(newProfile)
+      .select()
+      .single();
+    if (error) return res.status(500).json({ ok: false, message: error.message });
+    res.json({ ok: true, data });
+  } catch (err) {
+    res.status(500).json({ ok: false, message: err.message });
+  }
+});
+
+// PATCH /api/profiles/by-id/:id — update profile
+app.patch('/api/profiles/by-id/:id', async (req, res) => {
+  try {
+    const supabase = await getSupabaseAdmin();
+    const { data: current, error: fetchErr } = await supabase
+      .from('professional_profiles')
+      .select('*')
+      .eq('id', req.params.id)
+      .single();
+    if (fetchErr || !current) return res.status(404).json({ ok: false, message: 'Profile not found' });
+
+    const updates = req.body.data || req.body;
+    const { data, error } = await supabase
+      .from('professional_profiles')
+      .update({
+        data: { ...current.data, ...updates },
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', req.params.id)
+      .select()
+      .single();
+    if (error) return res.status(500).json({ ok: false, message: error.message });
+    res.json({ ok: true, data });
+  } catch (err) {
+    res.status(500).json({ ok: false, message: err.message });
   }
 });
 

@@ -1,7 +1,7 @@
 import { Modal, Form, Button } from 'react-bootstrap';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { login } from '../services/auth';
+import { loginWithPassword } from '../services/auth';
 
 function LoginModal({ show, onHide, onSwitchToSignup }) {
   const [identifier, setIdentifier] = useState('');
@@ -10,15 +10,21 @@ function LoginModal({ show, onHide, onSwitchToSignup }) {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    const res = await login(identifier, password);
+    const res = await loginWithPassword(identifier, password);
     if (!res.ok) {
       alert(res.message || 'Login failed');
       return;
     }
-    // Login สำเร็จ -> ปิด modal และไปหน้า my profile
+    // Login สำเร็จ -> ปิด modal และ navigate ไปตามสิทธิ์
     window.dispatchEvent(new Event('authChange'));
     if (onHide) onHide();
-    navigate('/my-profile');
+    
+    // ถ้าเป็น admin ให้ไปหน้า admin dashboard แทน
+    if (res.user?.role === 'admin') {
+      navigate('/admin');
+    } else {
+      navigate('/my-profile');
+    }
   };
 
   return (

@@ -78,6 +78,42 @@
       "role": "user",
       "token": "glu35drffgq",
       "createdAt": "2026-04-01T12:50:17.592Z"
+    },
+    {
+      "id": 1775050000000,
+      "username": "admin1",
+      "email": "admin1@smartpersona.com",
+      "password": "123456",
+      "firstName": "Admin",
+      "lastName": "User",
+      "birthDate": "2000-01-01",
+      "role": "admin",
+      "token": "admin1token123",
+      "createdAt": "2026-04-20T00:00:00.000Z"
+    },
+    {
+      "id": 1776679125307,
+      "username": "itsiwa",
+      "email": "itsiwa.tor@spumail.net",
+      "password": "12345678",
+      "firstName": "itsiwa",
+      "lastName": "-",
+      "birthDate": "2000-01-01",
+      "role": "user",
+      "token": "9u2cl8witpw",
+      "createdAt": "2026-04-20T09:58:45.307Z"
+    },
+    {
+      "id": 1776682255589,
+      "username": "aum",
+      "email": "itsiwa.tor2006@gmail.com",
+      "password": "12345678",
+      "firstName": "aum",
+      "lastName": "-",
+      "birthDate": "2000-01-01",
+      "role": "user",
+      "token": "loc4kckvbw",
+      "createdAt": "2026-04-20T10:50:55.589Z"
     }
   ]
 }

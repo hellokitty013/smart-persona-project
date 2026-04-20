@@ -1,132 +1,86 @@
-// Professional Profile Manager — Supabase backend
+// Professional Profile Manager — via Backend API (bypasses Supabase RLS)
 import { supabase } from '../supabaseClient'
 import { getCurrentUser } from './auth'
 
 const ACTIVE_PROFILE_KEY = 'active_professional_profile'
+const API = 'http://localhost:5000'
+
+// ─── helpers ──────────────────────────────────────────────────────────────────
+
+const apiFetch = async (path, options = {}) => {
+  const res = await fetch(`${API}${path}`, {
+    headers: { 'Content-Type': 'application/json' },
+    ...options
+  })
+  const json = await res.json()
+  if (!json.ok) throw new Error(json.message || 'API error')
+  return json.data
+}
 
 // ─── CRUD ─────────────────────────────────────────────────────────────────────
 
-export const initProfessionalProfiles = () => {} // no-op: Supabase handles init
+export const initProfessionalProfiles = () => {} // no-op
 
 export const getAllProfessionalProfiles = async () => {
-  const { data, error } = await supabase
-    .from('professional_profiles')
-    .select('*')
-    .order('created_at', { ascending: true })
-  if (error) { console.error('getAllProfessionalProfiles:', error); return [] }
-  return data || []
+  try {
+    return await apiFetch('/api/profiles') || []
+  } catch (e) { console.error('getAllProfessionalProfiles:', e); return [] }
 }
 
 export const getProfessionalProfileById = async (id) => {
-  const { data, error } = await supabase
-    .from('professional_profiles')
-    .select('*')
-    .eq('id', id)
-    .single()
-  if (error) { console.error('getProfessionalProfileById:', error); return null }
-  return data
+  try {
+    return await apiFetch(`/api/profiles/by-id/${id}`)
+  } catch (e) { console.error('getProfessionalProfileById:', e); return null }
 }
 
 export const getProfessionalProfileByUsername = async (username) => {
-  const { data, error } = await supabase
-    .from('professional_profiles')
-    .select('*')
-    .eq('username', username)
-    .maybeSingle()
-  if (error) { console.error('getProfessionalProfileByUsername:', error); return null }
-  return data
+  try {
+    return await apiFetch(`/api/profiles/by-username/${encodeURIComponent(username)}`)
+  } catch (e) { console.error('getProfessionalProfileByUsername:', e); return null }
 }
 
 export const getCurrentUserProfessionalProfile = async () => {
-  const { data: { session } } = await supabase.auth.getSession(); const user = session?.user
-  if (!user) return null
-  const { data, error } = await supabase
-    .from('professional_profiles')
-    .select('*')
-    .eq('user_id', user.id)
-    .maybeSingle()
-  if (error) { console.error('getCurrentUserProfessionalProfile:', error); return null }
-  return data
+  const currentUser = getCurrentUser()
+  if (!currentUser?.username) return null
+  try {
+    return await apiFetch(`/api/profiles/by-username/${encodeURIComponent(currentUser.username)}`)
+  } catch (e) { console.error('getCurrentUserProfessionalProfile:', e); return null }
 }
 
 export const createProfessionalProfile = async (username) => {
-  const { data: { session } } = await supabase.auth.getSession(); const user = session?.user
-  if (!user) throw new Error('Not authenticated')
-
-  const existing = await getProfessionalProfileByUsername(username)
-  if (existing) return existing
-
-  const newProfile = {
-    user_id: user.id,
-    username,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    data: {
-      displayName: username,
-      jobTitle: '',
-      location: '',
-      avatar: `https://ui-avatars.com/api/?name=${username}&background=random`,
-      coverImage: '',
-      coverColor: '#0a66c2',
-      about: '',
-      experienceYears: 0,
-      skills: [],
-      experience: [],
-      education: [],
-      tagline: '',
-      followers: 0,
-      vheartLikes: 0,
-      following: 0,
-      contact: { email: '', phone: '', address: '', links: [] },
-      featuredItems: [],
-      recentActivity: [],
-      isPublic: true
-    }
-  }
-
-  const { data, error } = await supabase
-    .from('professional_profiles')
-    .insert(newProfile)
-    .select()
-    .single()
-  if (error) { console.error('createProfessionalProfile:', error); throw error }
-  return data
+  const currentUser = getCurrentUser()
+  if (!currentUser?.username) throw new Error('Not authenticated')
+  try {
+    return await apiFetch('/api/profiles', {
+      method: 'POST',
+      body: JSON.stringify({ username, user_id: currentUser.username })
+    })
+  } catch (e) { console.error('createProfessionalProfile:', e); throw e }
 }
 
 export const updateProfessionalProfile = async (id, updates) => {
-  const current = await getProfessionalProfileById(id)
-  if (!current) return null
-
-  const { data, error } = await supabase
-    .from('professional_profiles')
-    .update({
-      data: { ...current.data, ...updates },
-      updated_at: new Date().toISOString()
+  try {
+    return await apiFetch(`/api/profiles/by-id/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates)
     })
-    .eq('id', id)
-    .select()
-    .single()
-  if (error) { console.error('updateProfessionalProfile:', error); throw error }
-  return data
+  } catch (e) { console.error('updateProfessionalProfile:', e); throw e }
 }
 
 export const deleteProfessionalProfile = async (id) => {
-  const { error } = await supabase.from('professional_profiles').delete().eq('id', id)
-  if (error) { console.error('deleteProfessionalProfile:', error); return false }
-  return true
+  try {
+    const res = await fetch(`${API}/api/profiles/by-id/${id}`, { method: 'DELETE' })
+    return res.ok
+  } catch (e) { return false }
 }
 
 export const getPublicProfessionalProfiles = async () => {
-  const { data, error } = await supabase
-    .from('professional_profiles')
-    .select('*')
-  if (error) { console.error('getPublicProfessionalProfiles:', error); return [] }
-  return (data || []).filter(p => p.data?.isPublic === true)
+  const profiles = await getAllProfessionalProfiles()
+  return (profiles || []).filter(p => p.data?.isPublic === true)
 }
 
 export const searchProfessionalProfiles = async (query = '', filters = {}) => {
   let profiles = await getPublicProfessionalProfiles()
-
   if (query.trim()) {
     const q = query.toLowerCase()
     profiles = profiles.filter(p => {
@@ -139,16 +93,11 @@ export const searchProfessionalProfiles = async (query = '', filters = {}) => {
       )
     })
   }
-
   if (filters.skill) {
-    profiles = profiles.filter(p =>
-      p.data.skills?.some(s => s.toLowerCase() === filters.skill.toLowerCase())
-    )
+    profiles = profiles.filter(p => p.data.skills?.some(s => s.toLowerCase() === filters.skill.toLowerCase()))
   }
   if (filters.location) {
-    profiles = profiles.filter(p =>
-      p.data.location?.toLowerCase() === filters.location.toLowerCase()
-    )
+    profiles = profiles.filter(p => p.data.location?.toLowerCase() === filters.location.toLowerCase())
   }
   if (filters.experienceLevel) {
     profiles = profiles.filter(p => {
@@ -161,7 +110,6 @@ export const searchProfessionalProfiles = async (query = '', filters = {}) => {
       }
     })
   }
-
   return profiles
 }
 
@@ -289,4 +237,3 @@ export const getActiveProfessionalProfile = async () => {
   if (profileId) return getProfessionalProfileById(profileId)
   return null
 }
-

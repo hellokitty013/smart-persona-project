@@ -37,6 +37,49 @@ export async function logout() {
   } catch (e) { }
 }
 
+export async function loginWithPassword(identifier, password) {
+  try {
+    // Call backend endpoint instead of querying Supabase directly
+    const response = await fetch('http://localhost:5000/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier, password })
+    });
+
+    const result = await response.json();
+
+    if (!result.ok) {
+      return { ok: false, message: result.message || 'Login failed' };
+    }
+
+    const profileData = result.user;
+    const role = profileData.role || 'user';
+
+    // บันทึก session
+    setSession({ 
+      username: profileData.username, 
+      email: profileData.email, 
+      token: 'local_token_' + Date.now(),
+      role 
+    });
+
+    writeJSON(PROFILE_KEY, {
+      username: profileData.username,
+      email: profileData.email,
+      full_name: profileData.full_name || '',
+      role,
+      description: '',
+      avatar: profileData.avatar_url || ''
+    });
+
+    console.log('✅ Login success:', { username: profileData.username, role });
+    return { ok: true, user: { username: profileData.username, email: profileData.email, role } };
+  } catch (e) {
+    console.error('Login Error:', e);
+    return { ok: false, message: 'เกิดข้อผิดพลาด: ' + e.message };
+  }
+}
+
 export async function getUsers() {
   try {
     const { data, error } = await supabase
@@ -52,48 +95,51 @@ export async function getUsers() {
 
 export async function registerUser({ username, email, password, firstName, lastName, birthDate }) {
   try {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          username,
-          firstName,
-          lastName,
-          birthDate
-        }
-      }
+    // Call backend endpoint instead of Supabase Auth
+    const response = await fetch('http://localhost:5000/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username,
+        email,
+        password,
+        firstName: firstName || username,
+        lastName: lastName || '-',
+        birthDate: birthDate || '2000-01-01'
+      })
     });
 
-    if (error) return { ok: false, message: error.message };
+    const result = await response.json();
 
-    const user = data.user;
-    if (user) {
-      // บันทึก username → email ลงตาราง user_profiles เพื่อให้ login ด้วย username ได้
-      await supabase.from('user_profiles').upsert({
-        id: user.id,
-        username,
-        email: user.email,
-        first_name: firstName || '',
-        last_name: lastName || '',
-      }, { onConflict: 'id' });
-
-      setSession({ username, email: user.email, token: user.aud });
-      writeJSON(PROFILE_KEY, { 
-        username, 
-        firstName, 
-        lastName, 
-        email: user.email, 
-        description: '', 
-        avatar: '', 
-        bgColor: '#050505', 
-        nameColor: '#ffffff' 
-      });
-      return { ok: true, user: { username, email: user.email } };
+    if (!result.ok) {
+      return { ok: false, message: result.message || 'Registration failed' };
     }
-    return { ok: false, message: 'Registration failed or requires email confirmation' };
+
+    // Set session
+    const role = result.user?.role || 'user';
+    setSession({
+      username: result.user.username,
+      email: result.user.email,
+      token: 'local_token_' + Date.now(),
+      role
+    });
+
+    writeJSON(PROFILE_KEY, {
+      username: result.user.username,
+      email: result.user.email,
+      full_name: `${firstName || username} ${lastName || ''}`.trim(),
+      role,
+      description: '',
+      avatar: '',
+      bgColor: '#050505',
+      nameColor: '#ffffff'
+    });
+
+    console.log('✅ Registration success:', { username: result.user.username, role });
+    return { ok: true, user: { username: result.user.username, email: result.user.email, role } };
   } catch (e) {
-    return { ok: false, message: 'Supabase Connection Error' };
+    console.error('Register Error:', e);
+    return { ok: false, message: 'เกิดข้อผิดพลาด: ' + e.message };
   }
 }
 
@@ -139,16 +185,33 @@ export async function login(identifier, password) {
     const user = data.user;
     if (user) {
       const username = user.user_metadata?.username || user.email.split('@')[0];
-      setSession({ username, email: user.email, token: user.aud });
+      
+      // ดึง role จากตาราง profiles
+      let role = 'user';
+      try {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .maybeSingle();
+        if (profileData?.role) {
+          role = profileData.role;
+        }
+      } catch (err) {
+        // ถ้ามี error ให้ใช้ role default เป็น user
+      }
+      
+      setSession({ username, email: user.email, token: user.aud, role });
       writeJSON(PROFILE_KEY, { 
         username, 
         firstName: user.user_metadata?.firstName || '', 
         lastName: user.user_metadata?.lastName || '', 
         email: user.email, 
         description: '', 
-        avatar: '' 
+        avatar: '', 
+        role 
       });
-      return { ok: true, user: { username, email: user.email } };
+      return { ok: true, user: { username, email: user.email, role } };
     }
     return { ok: false, message: 'Login failed' };
   } catch (e) {
