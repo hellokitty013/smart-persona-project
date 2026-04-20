@@ -10,6 +10,7 @@ import {
   createThemeFromProfile,
   deleteCommunityTheme,
   getThemesForType,
+  getSavedThemes,
   publishTheme,
   saveThemeLocally
 } from '../services/themeService'
@@ -110,6 +111,7 @@ const Themes = () => {
   const [themeNameInput, setThemeNameInput] = useState('')
   const [isSnapshotting, setIsSnapshotting] = useState(false)
   const [currentUser, setCurrentUser] = useState(null)
+  const [searchQuery, setSearchQuery] = useState('')
   const activeTabCopy = THEME_TAB_COPY[selectedTab] || THEME_TAB_COPY.personal
 
   useEffect(() => {
@@ -157,7 +159,16 @@ const Themes = () => {
     const load = async () => {
       try {
         const themes = await getThemesForType(selectedTab)
-        setThemeLibrary(themes)
+        const saved = await getSavedThemes()
+        const savedForType = saved
+          .filter(t => t.profile_type === selectedTab || t.profileType === selectedTab)
+          .map(t => ({
+            ...t,
+            source: 'saved',
+            profileType: t.profile_type || t.profileType || selectedTab,
+            tokens: t.tokens || t.config || {}
+          }))
+        setThemeLibrary([...themes, ...savedForType])
       } catch (err) {
         console.error('Failed to load themes', err)
         setThemeLibrary([])
@@ -182,11 +193,11 @@ const Themes = () => {
     }
   }
 
-  const handleSaveTheme = (theme) => {
+  const handleSaveTheme = async (theme) => {
     if (!ensureAuthenticated()) return
     try {
       const normalized = normalizeThemeShape(theme)
-      saveThemeLocally({
+      await saveThemeLocally({
         profileType: normalized.profileType,
         name: `${normalized.name} Copy`,
         tags: normalized.tags,
@@ -228,10 +239,10 @@ const Themes = () => {
       )
 
       if (mode === 'publish') {
-        publishTheme(baseTheme)
+        await publishTheme(baseTheme)
         showToastMessage('Theme published to community')
       } else {
-        saveThemeLocally(baseTheme)
+        await saveThemeLocally(baseTheme)
         showToastMessage('Theme saved to My Themes')
       }
 
@@ -255,29 +266,31 @@ const Themes = () => {
   }
 
   const filteredThemes = useMemo(() => {
-    const categoryThemes = themeLibrary
-    if (selectedFilter === 'all') {
-      return categoryThemes
+    let result = themeLibrary
+
+    // Search filter
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase()
+      result = result.filter(theme =>
+        theme.name?.toLowerCase().includes(q) ||
+        (theme.tags || []).some(tag => tag.toLowerCase().includes(q)) ||
+        theme.author?.toLowerCase().includes(q)
+      )
     }
 
-    return categoryThemes.filter(theme => {
+    if (selectedFilter === 'all') return result
+    if (selectedFilter === 'saved') return result.filter(t => t.source === 'saved')
+
+    return result.filter(theme => {
       const preview = getPreviewDescriptor(theme)
       const tokens = getTokens(theme)
-      if (selectedFilter === 'gif') {
-        return preview.type === 'gif'
-      }
-      if (selectedFilter === 'gradient') {
-        return preview.type === 'gradient'
-      }
-      if (selectedFilter === 'fonts') {
-        return Boolean(tokens.fontFamily && !tokens.fontFamily.includes('Inter'))
-      }
-      if (selectedFilter === 'trending') {
-        return Boolean(theme.stats?.trending || theme.trending)
-      }
+      if (selectedFilter === 'gif') return preview.type === 'gif'
+      if (selectedFilter === 'gradient') return preview.type === 'gradient'
+      if (selectedFilter === 'fonts') return Boolean(tokens.fontFamily && !tokens.fontFamily.includes('Inter'))
+      if (selectedFilter === 'trending') return Boolean(theme.stats?.trending || theme.trending)
       return (theme.tags || []).includes(selectedFilter)
     })
-  }, [themeLibrary, selectedFilter])
+  }, [themeLibrary, selectedFilter, searchQuery])
 
   const handleDeleteCommunity = (theme) => {
     if (!window.confirm(t('confirm_remove_theme') || 'Remove this theme from the gallery?')) {
@@ -404,6 +417,13 @@ const Themes = () => {
                 {t('all_themes') || 'All Themes'}
               </button>
               <button
+                className={`filter-btn ${selectedFilter === 'saved' ? 'active' : ''}`}
+                onClick={() => setSelectedFilter('saved')}
+              >
+                <i className="bi bi-bookmark-fill me-1"></i>
+                {t('my_themes') || 'My Themes'}
+              </button>
+              <button
                 className={`filter-btn ${selectedFilter === 'gif' ? 'active' : ''}`}
                 onClick={() => setSelectedFilter('gif')}
               >
@@ -431,6 +451,31 @@ const Themes = () => {
                 <i className="bi bi-star-fill me-1"></i>
                 {t('trending') || 'Trending'}
               </button>
+
+              {/* Search */}
+              <div style={{ marginLeft: 'auto' }}>
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <i className="bi bi-search" style={{ position: 'absolute', left: 10, color: '#999', fontSize: 14 }}></i>
+                  <input
+                    type="text"
+                    placeholder="Search themes..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    style={{
+                      paddingLeft: 32, paddingRight: 12, paddingTop: 8, paddingBottom: 8,
+                      border: '1px solid rgba(0,0,0,0.15)', borderRadius: 20,
+                      fontSize: 13, outline: 'none', width: 180,
+                      background: '#fff'
+                    }}
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      style={{ position: 'absolute', right: 8, background: 'none', border: 'none', cursor: 'pointer', color: '#999', fontSize: 12, padding: 0 }}
+                    >✕</button>
+                  )}
+                </div>
+              </div>
             </div>
 
             <div className="themes-grid">
@@ -456,30 +501,50 @@ const Themes = () => {
                           className="theme-mockup"
                           style={{ fontFamily: tokens.fontFamily || 'inherit' }}
                         >
-                          <div
-                            className="mockup-avatar"
-                            style={{ background: tokens.nameColor || '#6c5ce7', opacity: 0.9 }}
-                          >
-                            <i className="bi bi-person-fill"></i>
-                          </div>
-                          <div
-                            className="mockup-name"
-                            style={{
-                              color: tokens.nameColor || '#fff',
-                              textShadow: preview.type === 'gif' ? '0 2px 8px rgba(0,0,0,0.8)' : 'none'
-                            }}
-                          >
-                            Your Name
-                          </div>
-                          <div
-                            className="mockup-desc"
-                            style={{
-                              color: tokens.descColor || '#f5f5f5',
-                              textShadow: preview.type === 'gif' ? '0 2px 8px rgba(0,0,0,0.8)' : 'none'
-                            }}
-                          >
-                            Your description here
-                          </div>
+                          {/* Personal mockup */}
+                          {theme.profileType === 'personal' && (
+                            <>
+                              <div className="mockup-avatar" style={{ background: tokens.nameColor || '#6c5ce7', opacity: 0.9 }}>
+                                <i className="bi bi-person-fill"></i>
+                              </div>
+                              <div className="mockup-name" style={{ color: tokens.nameColor || '#fff', textShadow: preview.type === 'gif' ? '0 2px 8px rgba(0,0,0,0.8)' : 'none' }}>Your Name</div>
+                              <div className="mockup-desc" style={{ color: tokens.descColor || '#f5f5f5', textShadow: preview.type === 'gif' ? '0 2px 8px rgba(0,0,0,0.8)' : 'none' }}>Your description here</div>
+                            </>
+                          )}
+                          {/* Vtree mockup */}
+                          {theme.profileType === 'vtree' && (
+                            <>
+                              <div className="mockup-avatar" style={{ background: tokens.nameColor || '#6c5ce7', opacity: 0.9 }}>
+                                <i className="bi bi-person-fill"></i>
+                              </div>
+                              <div className="mockup-name" style={{ color: tokens.nameColor || '#fff', fontSize: 10 }}>Your Name</div>
+                              {['Link 1', 'Link 2', 'Link 3'].map((l, i) => (
+                                <div key={i} style={{
+                                  background: tokens.buttonColor || tokens.blockColor || 'rgba(255,255,255,0.2)',
+                                  color: tokens.linkColor || tokens.nameColor || '#fff',
+                                  borderRadius: 8, padding: '3px 0', marginTop: 3,
+                                  fontSize: 8, textAlign: 'center', width: '80%'
+                                }}>{l}</div>
+                              ))}
+                            </>
+                          )}
+                          {/* Resume mockup */}
+                          {theme.profileType === 'resume' && (
+                            <>
+                              <div style={{ width: '90%', background: tokens.blockColor || '#fff', borderRadius: 4, padding: '4px 6px' }}>
+                                <div style={{ color: tokens.nameColor || '#000', fontWeight: 700, fontSize: 9 }}>Full Name</div>
+                                <div style={{ color: tokens.descColor || '#666', fontSize: 7, marginBottom: 3 }}>Job Title · Location</div>
+                                {['Experience', 'Education', 'Skills'].map((s, i) => (
+                                  <div key={i} style={{
+                                    background: tokens.sectionBg || tokens.blockColor || '#f5f5f5',
+                                    borderLeft: `2px solid ${tokens.headingColor || tokens.nameColor || '#000'}`,
+                                    padding: '2px 4px', marginBottom: 2, fontSize: 7,
+                                    color: tokens.headingColor || tokens.nameColor || '#000'
+                                  }}>{s}</div>
+                                ))}
+                              </div>
+                            </>
+                          )}
                         </div>
 
                         {isTrending && (

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+﻿import React, { useState } from 'react'
 
 /**
  * VtreeCustomize: Linktree-style customization interface
@@ -105,7 +105,7 @@ export default function VtreeCustomize({
   const stylePresets = {
     professional: {
       name: 'Professional',
-      icon: '💼',
+      icon: 'ðŸ’¼',
       description: 'Clean and trustworthy for business',
       config: {
         profileImageLayout: 'classic',
@@ -123,7 +123,7 @@ export default function VtreeCustomize({
     },
     creative: {
       name: 'Creative',
-      icon: '🎨',
+      icon: 'ðŸŽ¨',
       description: 'Bold and colorful for creators',
       config: {
         profileImageLayout: 'vfull',
@@ -141,7 +141,7 @@ export default function VtreeCustomize({
     },
     minimal: {
       name: 'Minimal',
-      icon: '✨',
+      icon: 'âœ¨',
       description: 'Simple and elegant design',
       config: {
         profileImageLayout: 'classic',
@@ -159,7 +159,7 @@ export default function VtreeCustomize({
     },
     bold: {
       name: 'Bold',
-      icon: '⚡',
+      icon: 'âš¡',
       description: 'Eye-catching and dynamic',
       config: {
         profileImageLayout: 'vfull',
@@ -177,7 +177,7 @@ export default function VtreeCustomize({
     },
     elegant: {
       name: 'Elegant',
-      icon: '👑',
+      icon: 'ðŸ‘‘',
       description: 'Sophisticated and refined',
       config: {
         profileImageLayout: 'classic',
@@ -233,7 +233,7 @@ export default function VtreeCustomize({
     setSelectedPreset(presetKey)
     
     // Show success notification
-    setSuccessMessage(`สร้างโปรไฟล์สไตล์ "${preset.name}" สำเร็จ!`)
+    setSuccessMessage(`à¸ªà¸£à¹‰à¸²à¸‡à¹‚à¸›à¸£à¹„à¸Ÿà¸¥à¹Œà¸ªà¹„à¸•à¸¥à¹Œ "${preset.name}" à¸ªà¸³à¹€à¸£à¹‡à¸ˆ!`)
     setShowSuccessNotification(true)
     
     // Auto hide after 3 seconds
@@ -245,7 +245,7 @@ export default function VtreeCustomize({
   // AI Generation from prompt (Thai & English support)
   const generateFromPrompt = () => {
     if (!vcreatePrompt.trim()) {
-      alert('กรุณาใส่คำอธิบายสไตล์ที่ต้องการก่อนครับ / Please describe your desired style first')
+      alert('à¸à¸£à¸¸à¸“à¸²à¹ƒà¸ªà¹ˆà¸„à¸³à¸­à¸˜à¸´à¸šà¸²à¸¢à¸ªà¹„à¸•à¸¥à¹Œà¸—à¸µà¹ˆà¸•à¹‰à¸­à¸‡à¸à¸²à¸£à¸à¹ˆà¸­à¸™à¸„à¸£à¸±à¸š / Please describe your desired style first')
       return
     }
 
@@ -255,137 +255,137 @@ export default function VtreeCustomize({
     // Color palette mapping (Thai & English) - All colors supported
     const colorPalettes = {
       pink: {
-        keywords: ['pink', 'ชมพู', 'rosa'],
+        keywords: ['pink', 'à¸Šà¸¡à¸žà¸¹', 'rosa'],
         colors: { bg: '#ec4899', button: '#f472b6', text: '#ffffff' }
       },
       blue: {
-        keywords: ['blue', 'น้ำเงิน', 'ฟ้า'],
+        keywords: ['blue', 'à¸™à¹‰à¸³à¹€à¸‡à¸´à¸™', 'à¸Ÿà¹‰à¸²'],
         colors: { bg: '#2563eb', button: '#3b82f6', text: '#ffffff' }
       },
       purple: {
-        keywords: ['purple', 'violet', 'ม่วง', 'ไวโอเลต'],
+        keywords: ['purple', 'violet', 'à¸¡à¹ˆà¸§à¸‡', 'à¹„à¸§à¹‚à¸­à¹€à¸¥à¸•'],
         colors: { bg: '#7c3aed', button: '#8b5cf6', text: '#ffffff' }
       },
       green: {
-        keywords: ['green', 'เขียว'],
+        keywords: ['green', 'à¹€à¸‚à¸µà¸¢à¸§'],
         colors: { bg: '#059669', button: '#10b981', text: '#ffffff' }
       },
       red: {
-        keywords: ['red', 'แดง'],
+        keywords: ['red', 'à¹à¸”à¸‡'],
         colors: { bg: '#dc2626', button: '#ef4444', text: '#ffffff' }
       },
       orange: {
-        keywords: ['orange', 'ส้ม'],
+        keywords: ['orange', 'à¸ªà¹‰à¸¡'],
         colors: { bg: '#ea580c', button: '#f97316', text: '#ffffff' }
       },
       yellow: {
-        keywords: ['yellow', 'เหลือง'],
+        keywords: ['yellow', 'à¹€à¸«à¸¥à¸·à¸­à¸‡'],
         colors: { bg: '#eab308', button: '#fbbf24', text: '#000000' }
       },
       brown: {
-        keywords: ['brown', 'น้ำตาล', 'coffee', 'กาแฟ'],
+        keywords: ['brown', 'à¸™à¹‰à¸³à¸•à¸²à¸¥', 'coffee', 'à¸à¸²à¹à¸Ÿ'],
         colors: { bg: '#78350f', button: '#92400e', text: '#ffffff' }
       },
       black: {
-        keywords: ['black', 'dark', 'ดำ', 'มืด', 'เข้ม', 'ดาร์ค'],
+        keywords: ['black', 'dark', 'à¸”à¸³', 'à¸¡à¸·à¸”', 'à¹€à¸‚à¹‰à¸¡', 'à¸”à¸²à¸£à¹Œà¸„'],
         colors: { bg: '#0a0a0a', button: '#1f1f1f', text: '#ffffff' }
       },
       white: {
-        keywords: ['white', 'light', 'ขาว', 'สว่าง', 'อ่อน'],
+        keywords: ['white', 'light', 'à¸‚à¸²à¸§', 'à¸ªà¸§à¹ˆà¸²à¸‡', 'à¸­à¹ˆà¸­à¸™'],
         colors: { bg: '#f5f5f5', button: '#e5e5e5', text: '#000000' }
       },
       gold: {
-        keywords: ['gold', 'ทอง', 'golden'],
+        keywords: ['gold', 'à¸—à¸­à¸‡', 'golden'],
         colors: { bg: '#fef3c7', button: '#92400e', text: '#78350f' }
       },
       silver: {
-        keywords: ['silver', 'เงิน', 'grey', 'gray', 'เทา'],
+        keywords: ['silver', 'à¹€à¸‡à¸´à¸™', 'grey', 'gray', 'à¹€à¸—à¸²'],
         colors: { bg: '#6b7280', button: '#9ca3af', text: '#ffffff' }
       },
       teal: {
-        keywords: ['teal', 'cyan', 'เขียวน้ำทะเล', 'ฟ้าเขียว'],
+        keywords: ['teal', 'cyan', 'à¹€à¸‚à¸µà¸¢à¸§à¸™à¹‰à¸³à¸—à¸°à¹€à¸¥', 'à¸Ÿà¹‰à¸²à¹€à¸‚à¸µà¸¢à¸§'],
         colors: { bg: '#0891b2', button: '#06b6d4', text: '#ffffff' }
       },
       indigo: {
-        keywords: ['indigo', 'คราม', 'น้ำเงินเข้ม'],
+        keywords: ['indigo', 'à¸„à¸£à¸²à¸¡', 'à¸™à¹‰à¸³à¹€à¸‡à¸´à¸™à¹€à¸‚à¹‰à¸¡'],
         colors: { bg: '#4f46e5', button: '#6366f1', text: '#ffffff' }
       },
       lime: {
-        keywords: ['lime', 'เขียวมะนาว', 'เขียวอ่อน'],
+        keywords: ['lime', 'à¹€à¸‚à¸µà¸¢à¸§à¸¡à¸°à¸™à¸²à¸§', 'à¹€à¸‚à¸µà¸¢à¸§à¸­à¹ˆà¸­à¸™'],
         colors: { bg: '#65a30d', button: '#84cc16', text: '#ffffff' }
       },
       emerald: {
-        keywords: ['emerald', 'เขียวมรกต'],
+        keywords: ['emerald', 'à¹€à¸‚à¸µà¸¢à¸§à¸¡à¸£à¸à¸•'],
         colors: { bg: '#047857', button: '#059669', text: '#ffffff' }
       },
       rose: {
-        keywords: ['rose', 'ชมพูกุหลาบ'],
+        keywords: ['rose', 'à¸Šà¸¡à¸žà¸¹à¸à¸¸à¸«à¸¥à¸²à¸š'],
         colors: { bg: '#e11d48', button: '#f43f5e', text: '#ffffff' }
       },
       fuchsia: {
-        keywords: ['fuchsia', 'magenta', 'บานเย็น', 'ชมพูม่วง'],
+        keywords: ['fuchsia', 'magenta', 'à¸šà¸²à¸™à¹€à¸¢à¹‡à¸™', 'à¸Šà¸¡à¸žà¸¹à¸¡à¹ˆà¸§à¸‡'],
         colors: { bg: '#c026d3', button: '#d946ef', text: '#ffffff' }
       },
       sky: {
-        keywords: ['sky', 'ฟ้าอ่อน', 'skyblue'],
+        keywords: ['sky', 'à¸Ÿà¹‰à¸²à¸­à¹ˆà¸­à¸™', 'skyblue'],
         colors: { bg: '#0284c7', button: '#0ea5e9', text: '#ffffff' }
       },
       violet: {
-        keywords: ['violet', 'ม่วงอ่อน'],
+        keywords: ['violet', 'à¸¡à¹ˆà¸§à¸‡à¸­à¹ˆà¸­à¸™'],
         colors: { bg: '#7c3aed', button: '#8b5cf6', text: '#ffffff' }
       },
       amber: {
-        keywords: ['amber', 'เหลืองอำพัน'],
+        keywords: ['amber', 'à¹€à¸«à¸¥à¸·à¸­à¸‡à¸­à¸³à¸žà¸±à¸™'],
         colors: { bg: '#d97706', button: '#f59e0b', text: '#ffffff' }
       },
       mint: {
-        keywords: ['mint', 'เขียวมิ้นต์', 'เขียวพาสเทล'],
+        keywords: ['mint', 'à¹€à¸‚à¸µà¸¢à¸§à¸¡à¸´à¹‰à¸™à¸•à¹Œ', 'à¹€à¸‚à¸µà¸¢à¸§à¸žà¸²à¸ªà¹€à¸—à¸¥'],
         colors: { bg: '#6ee7b7', button: '#34d399', text: '#000000' }
       },
       lavender: {
-        keywords: ['lavender', 'ม่วงลาเวนเดอร์', 'ม่วงพาสเทล'],
+        keywords: ['lavender', 'à¸¡à¹ˆà¸§à¸‡à¸¥à¸²à¹€à¸§à¸™à¹€à¸”à¸­à¸£à¹Œ', 'à¸¡à¹ˆà¸§à¸‡à¸žà¸²à¸ªà¹€à¸—à¸¥'],
         colors: { bg: '#a78bfa', button: '#8b5cf6', text: '#ffffff' }
       },
       peach: {
-        keywords: ['peach', 'ส้มพีช', 'ส้มอ่อน'],
+        keywords: ['peach', 'à¸ªà¹‰à¸¡à¸žà¸µà¸Š', 'à¸ªà¹‰à¸¡à¸­à¹ˆà¸­à¸™'],
         colors: { bg: '#fb923c', button: '#f97316', text: '#ffffff' }
       },
       navy: {
-        keywords: ['navy', 'น้ำเงินกรม', 'น้ำเงินเข้ม'],
+        keywords: ['navy', 'à¸™à¹‰à¸³à¹€à¸‡à¸´à¸™à¸à¸£à¸¡', 'à¸™à¹‰à¸³à¹€à¸‡à¸´à¸™à¹€à¸‚à¹‰à¸¡'],
         colors: { bg: '#1e3a8a', button: '#1e40af', text: '#ffffff' }
       },
       maroon: {
-        keywords: ['maroon', 'แดงเข้ม', 'แดงคล้ำ'],
+        keywords: ['maroon', 'à¹à¸”à¸‡à¹€à¸‚à¹‰à¸¡', 'à¹à¸”à¸‡à¸„à¸¥à¹‰à¸³'],
         colors: { bg: '#7f1d1d', button: '#991b1b', text: '#ffffff' }
       },
       olive: {
-        keywords: ['olive', 'เขียวมะกอก'],
+        keywords: ['olive', 'à¹€à¸‚à¸µà¸¢à¸§à¸¡à¸°à¸à¸­à¸'],
         colors: { bg: '#65a30d', button: '#84cc16', text: '#ffffff' }
       },
       coral: {
-        keywords: ['coral', 'ปะการัง', 'ส้มแดง'],
+        keywords: ['coral', 'à¸›à¸°à¸à¸²à¸£à¸±à¸‡', 'à¸ªà¹‰à¸¡à¹à¸”à¸‡'],
         colors: { bg: '#f87171', button: '#fb923c', text: '#ffffff' }
       },
       turquoise: {
-        keywords: ['turquoise', 'เขียวเทอร์ควอยซ์'],
+        keywords: ['turquoise', 'à¹€à¸‚à¸µà¸¢à¸§à¹€à¸—à¸­à¸£à¹Œà¸„à¸§à¸­à¸¢à¸‹à¹Œ'],
         colors: { bg: '#14b8a6', button: '#2dd4bf', text: '#ffffff' }
       },
       beige: {
-        keywords: ['beige', 'เบจ', 'ครีม', 'cream'],
+        keywords: ['beige', 'à¹€à¸šà¸ˆ', 'à¸„à¸£à¸µà¸¡', 'cream'],
         colors: { bg: '#fef3c7', button: '#fde68a', text: '#78350f' }
       }
     }
 
     // Style/Mood keywords
     const styleKeywords = {
-      professional: ['professional', 'business', 'corporate', 'formal', 'work', 'มืออาชีพ', 'ธุรกิจ', 'ทำงาน', 'บริษัท', 'ออฟฟิศ'],
-      creative: ['creative', 'colorful', 'fun', 'playful', 'artist', 'designer', 'สร้างสรรค์', 'สีสัน', 'สดใส', 'สนุก', 'ศิลปิน', 'ดีไซเนอร์', 'คอนเทนต์'],
-      minimal: ['minimal', 'minimalist', 'simple', 'clean', 'basic', 'มินิมอล', 'เรียบง่าย', 'สะอาด', 'เรียบ'],
-      bold: ['bold', 'strong', 'powerful', 'intense', 'edgy', 'cool', 'โดดเด่น', 'แรง', 'ทรงพลัง', 'เท่', 'คูล'],
-      elegant: ['elegant', 'luxury', 'sophisticated', 'premium', 'classy', 'refined', 'หรูหรา', 'สง่างาม', 'ระดับ', 'ประณีต', 'คลาสสิก'],
-      cute: ['cute', 'kawaii', 'sweet', 'lovely', 'adorable', 'น่ารัก', 'หวาน', 'คาวาอี้'],
-      modern: ['modern', 'contemporary', 'trendy', 'hip', 'ทันสมัย', 'โมเดิร์น', 'ฮิป'],
-      vintage: ['vintage', 'retro', 'classic', 'old school', 'วินเทจ', 'เรโทร', 'โบราณ']
+      professional: ['professional', 'business', 'corporate', 'formal', 'work', 'à¸¡à¸·à¸­à¸­à¸²à¸Šà¸µà¸ž', 'à¸˜à¸¸à¸£à¸à¸´à¸ˆ', 'à¸—à¸³à¸‡à¸²à¸™', 'à¸šà¸£à¸´à¸©à¸±à¸—', 'à¸­à¸­à¸Ÿà¸Ÿà¸´à¸¨'],
+      creative: ['creative', 'colorful', 'fun', 'playful', 'artist', 'designer', 'à¸ªà¸£à¹‰à¸²à¸‡à¸ªà¸£à¸£à¸„à¹Œ', 'à¸ªà¸µà¸ªà¸±à¸™', 'à¸ªà¸”à¹ƒà¸ª', 'à¸ªà¸™à¸¸à¸', 'à¸¨à¸´à¸¥à¸›à¸´à¸™', 'à¸”à¸µà¹„à¸‹à¹€à¸™à¸­à¸£à¹Œ', 'à¸„à¸­à¸™à¹€à¸—à¸™à¸•à¹Œ'],
+      minimal: ['minimal', 'minimalist', 'simple', 'clean', 'basic', 'à¸¡à¸´à¸™à¸´à¸¡à¸­à¸¥', 'à¹€à¸£à¸µà¸¢à¸šà¸‡à¹ˆà¸²à¸¢', 'à¸ªà¸°à¸­à¸²à¸”', 'à¹€à¸£à¸µà¸¢à¸š'],
+      bold: ['bold', 'strong', 'powerful', 'intense', 'edgy', 'cool', 'à¹‚à¸”à¸”à¹€à¸”à¹ˆà¸™', 'à¹à¸£à¸‡', 'à¸—à¸£à¸‡à¸žà¸¥à¸±à¸‡', 'à¹€à¸—à¹ˆ', 'à¸„à¸¹à¸¥'],
+      elegant: ['elegant', 'luxury', 'sophisticated', 'premium', 'classy', 'refined', 'à¸«à¸£à¸¹à¸«à¸£à¸²', 'à¸ªà¸‡à¹ˆà¸²à¸‡à¸²à¸¡', 'à¸£à¸°à¸”à¸±à¸š', 'à¸›à¸£à¸°à¸“à¸µà¸•', 'à¸„à¸¥à¸²à¸ªà¸ªà¸´à¸'],
+      cute: ['cute', 'kawaii', 'sweet', 'lovely', 'adorable', 'à¸™à¹ˆà¸²à¸£à¸±à¸', 'à¸«à¸§à¸²à¸™', 'à¸„à¸²à¸§à¸²à¸­à¸µà¹‰'],
+      modern: ['modern', 'contemporary', 'trendy', 'hip', 'à¸—à¸±à¸™à¸ªà¸¡à¸±à¸¢', 'à¹‚à¸¡à¹€à¸”à¸´à¸£à¹Œà¸™', 'à¸®à¸´à¸›'],
+      vintage: ['vintage', 'retro', 'classic', 'old school', 'à¸§à¸´à¸™à¹€à¸—à¸ˆ', 'à¹€à¸£à¹‚à¸—à¸£', 'à¹‚à¸šà¸£à¸²à¸“']
     }
 
     // Detect color
@@ -498,8 +498,8 @@ export default function VtreeCustomize({
 
     // Show success notification
     const styleName = bestStyle.charAt(0).toUpperCase() + bestStyle.slice(1)
-    const colorInfo = selectedColor ? ' พร้อมสีที่กำหนดเอง' : ''
-    setSuccessMessage(`สร้างโปรไฟล์สไตล์ "${styleName}"${colorInfo} สำเร็จ!`)
+    const colorInfo = selectedColor ? ' à¸žà¸£à¹‰à¸­à¸¡à¸ªà¸µà¸—à¸µà¹ˆà¸à¸³à¸«à¸™à¸”à¹€à¸­à¸‡' : ''
+    setSuccessMessage(`à¸ªà¸£à¹‰à¸²à¸‡à¹‚à¸›à¸£à¹„à¸Ÿà¸¥à¹Œà¸ªà¹„à¸•à¸¥à¹Œ "${styleName}"${colorInfo} à¸ªà¸³à¹€à¸£à¹‡à¸ˆ!`)
     setShowSuccessNotification(true)
     
     // Auto hide after 3 seconds
@@ -717,7 +717,7 @@ export default function VtreeCustomize({
                   onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.4)'}
                   onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.2)'}
                 >
-                  ×
+                  Ã—
                 </button>
               </div>
             </div>
@@ -732,7 +732,7 @@ export default function VtreeCustomize({
                 <textarea
                   className="form-control"
                   rows="3"
-                  placeholder="ตัวอย่าง: ขอแบบเท่ๆ คูลๆ โทนสีดำ | อยากได้น่ารักๆ โทนชมพู | ให้มันดูมืออาชีพ สีน้ำเงิน"
+                  placeholder="à¸•à¸±à¸§à¸­à¸¢à¹ˆà¸²à¸‡: à¸‚à¸­à¹à¸šà¸šà¹€à¸—à¹ˆà¹† à¸„à¸¹à¸¥à¹† à¹‚à¸—à¸™à¸ªà¸µà¸”à¸³ | à¸­à¸¢à¸²à¸à¹„à¸”à¹‰à¸™à¹ˆà¸²à¸£à¸±à¸à¹† à¹‚à¸—à¸™à¸Šà¸¡à¸žà¸¹ | à¹ƒà¸«à¹‰à¸¡à¸±à¸™à¸”à¸¹à¸¡à¸·à¸­à¸­à¸²à¸Šà¸µà¸ž à¸ªà¸µà¸™à¹‰à¸³à¹€à¸‡à¸´à¸™"
                   value={vcreatePrompt}
                   onChange={(e) => setVcreatePrompt(e.target.value)}
                   onClick={(e) => e.stopPropagation()}
@@ -773,7 +773,7 @@ export default function VtreeCustomize({
               </div>
 
               <div className="text-center my-3">
-                <span className="text-muted small">── OR CHOOSE A PRESET ──</span>
+                <span className="text-muted small">â”€â”€ OR CHOOSE A PRESET â”€â”€</span>
               </div>
 
               {/* Style Presets */}
@@ -865,7 +865,7 @@ export default function VtreeCustomize({
                   height: '30px'
                 }}
               >
-                ×
+                Ã—
               </button>
             </div>
 
@@ -2467,3 +2467,4 @@ export default function VtreeCustomize({
     </div>
   )
 }
+

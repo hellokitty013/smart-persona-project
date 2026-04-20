@@ -1,4 +1,4 @@
-// Utility to create demo PROFESSIONAL profiles for testing Explore page
+﻿// Utility to create demo PROFESSIONAL profiles for testing Explore page
 // This creates LinkedIn-style professional profiles (separate from Personal/Vtree/Resume)
 import { createProfessionalProfile, updateProfessionalProfile } from '../services/professionalProfileManager'
 
@@ -258,3 +258,4 @@ export function createDemoProfessionalProfiles() {
 // Call this function in browser console to create demo profiles:
 // import { createDemoProfiles } from './utils/createDemoProfiles'
 // createDemoProfiles()
+

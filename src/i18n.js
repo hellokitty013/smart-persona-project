@@ -173,6 +173,20 @@ const resources = {
       "apply": "Apply",
       "preview": "Preview",
       
+      // Saved Themes
+      "saved_themes": "Saved Themes",
+      "saved_themes_title": "Saved Themes",
+      "no_saved_themes": "No saved themes yet",
+      "save_theme_hint": "Save a theme from the Themes page to see it here.",
+      "go_to_themes": "Go to Themes",
+      "browse_more_themes": "Browse More Themes",
+      "saved_themes_personal": "Personal Themes",
+      "saved_themes_vtree": "Vtree Themes",
+      "saved_themes_resume": "Resume Themes",
+      "theme_applied": "Theme applied!",
+      "failed_to_apply": "Unable to apply theme",
+      "theme_removed": "Theme removed",
+      
       // My Profiles
       "my_profiles": "My Profiles",
       "create_new": "Create New",
@@ -372,6 +386,20 @@ const resources = {
       "resume": "Resume",
       "apply": "นำไปใช้",
       "preview": "ดูตัวอย่าง",
+      
+      // Saved Themes
+      "saved_themes": "ธีมที่บันทึก",
+      "saved_themes_title": "ธีมที่บันทึก",
+      "no_saved_themes": "ยังไม่มีธีมที่บันทึก",
+      "save_theme_hint": "บันทึกธีมจากหน้าธีมเพื่อดูที่นี่",
+      "go_to_themes": "ไปที่ธีม",
+      "browse_more_themes": "ดูธีมเพิ่มเติม",
+      "saved_themes_personal": "ธีม Personal",
+      "saved_themes_vtree": "ธีม Vtree",
+      "saved_themes_resume": "ธีม Resume",
+      "theme_applied": "นำธีมไปใช้แล้ว!",
+      "failed_to_apply": "ไม่สามารถใช้ธีมได้",
+      "theme_removed": "ลบธีมแล้ว",
       
       // My Profiles
       "my_profiles": "โปรไฟล์ของฉัน",

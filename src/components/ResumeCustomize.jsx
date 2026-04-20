@@ -31,6 +31,7 @@ function ResumeCustomize({ profile, onUpdate, profiles = [], currentProfileId, o
   const [previewBackdrop, setPreviewBackdrop] = useState('gradient')
   const [compactPreview, setCompactPreview] = useState(false)
   const [showSampleContent, setShowSampleContent] = useState(true)
+  const [isEnhancingSummary, setIsEnhancingSummary] = useState(false)
 
   // Section Order State for Drag & Drop
   const [sectionOrder, setSectionOrder] = useState([
@@ -628,6 +629,45 @@ function ResumeCustomize({ profile, onUpdate, profiles = [], currentProfileId, o
     const newData = { ...resumeData, [field]: value }
     setResumeData(newData)
     onUpdate?.(newData)
+  }
+
+  // AI Enhance Summary — rewrite existing summary into polished professional text
+  const handleAIEnhanceSummary = () => {
+    const current = resumeData.summary?.trim()
+    if (!current) {
+      alert('กรุณาเขียน summary ก่อน แล้วให้ AI ช่วยปรับปรุงให้ครับ')
+      return
+    }
+    setIsEnhancingSummary(true)
+
+    setTimeout(() => {
+      const name = resumeData.fullName || 'Professional'
+      const title = resumeData.title || ''
+      const skillList = (resumeData.skills || [])
+        .slice(0, 4)
+        .map(s => (typeof s === 'string' ? s : s.name))
+        .filter(Boolean)
+      const expCount = resumeData.experiences?.length || 0
+      const hasExp = expCount > 0
+      const firstCompany = resumeData.experiences?.[0]?.company || ''
+      const expNote = hasExp
+        ? `With hands-on experience${firstCompany ? ` at ${firstCompany}` : ''}, `
+        : ''
+      const skillNote = skillList.length > 0
+        ? ` Proficient in ${skillList.join(', ')}.`
+        : ''
+
+      // Enhance the original text — preserve key facts, improve polish
+      const sentences = current.split(/[.!?]/).map(s => s.trim()).filter(s => s.length > 8)
+      const coreContent = sentences.slice(0, 3).join('. ')
+
+      const enhanced = `${expNote}${coreContent ? coreContent + '. ' : ''}${title ? `As a dedicated ${title}, ` : ''}I bring a results-driven mindset and strong attention to detail to every project.${skillNote} Committed to continuous learning and delivering high-impact solutions that create real value.`
+
+      updateResumeData('summary', enhanced.trim())
+      setIsEnhancingSummary(false)
+      setShowSuccessNotification(true)
+      setTimeout(() => setShowSuccessNotification(false), 3000)
+    }, 1200)
   }
 
   // Dedicated helper so highlight edits stay in sync with preview + parent state
@@ -2927,10 +2967,35 @@ function ResumeCustomize({ profile, onUpdate, profiles = [], currentProfileId, o
 
                   {activeTab === 'summary' && (
                     <div>
-                      <h6 className="fw-bold mb-3">Professional Summary</h6>
+                      <h6 className="fw-bold mb-3"><i className="bi bi-card-text me-2"></i>Professional Summary</h6>
                       <p className="text-muted small mb-2">
-                        เขียนย่อหน้าสั้นๆ เกี่ยวกับตัวคุณ ความสามารถ และสิ่งที่ต้องการทำ
+                        เขียนย่อหน้าสั้นๆ เกี่ยวกับตัวคุณ ความสามารถ และสิ่งที่ต้องการทำ (2–4 ประโยค)
                       </p>
+
+                      {/* Quick-fill starters */}
+                      {!resumeData.summary && (
+                        <div className="mb-3">
+                          <p className="small fw-semibold text-muted mb-2">⚡ เริ่มจาก template:</p>
+                          <div className="d-flex flex-wrap gap-2">
+                            {[
+                              { label: '💻 Developer', text: 'Passionate software developer with experience building scalable web applications. Skilled in React, Node.js, and cloud platforms. Eager to contribute to innovative teams and deliver user-focused solutions.' },
+                              { label: '📊 Business', text: 'Results-oriented business professional with a background in marketing and data analysis. Experienced in driving growth through strategic campaigns and cross-functional collaboration.' },
+                              { label: '🎨 Designer', text: 'Creative UX/UI designer with a user-first approach and strong visual storytelling skills. Experienced in Figma, design systems, and translating complex problems into elegant interfaces.' },
+                              { label: '🎓 Fresh Grad', text: 'Motivated fresh graduate with hands-on project experience and a strong academic foundation. Quick learner with a passion for problem-solving and continuous growth.' }
+                            ].map(t => (
+                              <button
+                                key={t.label}
+                                className="btn btn-sm btn-outline-secondary"
+                                style={{ borderRadius: '20px', fontSize: '12px' }}
+                                onClick={() => updateResumeData('summary', t.text)}
+                              >
+                                {t.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
                       <textarea
                         className="form-control mb-2"
                         rows="6"
@@ -2946,13 +3011,12 @@ function ResumeCustomize({ profile, onUpdate, profiles = [], currentProfileId, o
                         <button 
                           className="btn btn-sm btn-outline-dark"
                           style={{ borderRadius: '6px' }}
-                          onClick={() => {
-                            // Placeholder for AI enhance
-                            alert('AI Enhance feature coming soon!')
-                          }}
+                          disabled={isEnhancingSummary}
+                          onClick={handleAIEnhanceSummary}
                         >
-                          <i className="bi bi-magic me-1"></i>
-                          AI Enhance
+                          {isEnhancingSummary
+                            ? <><span className="spinner-border spinner-border-sm me-1" role="status"></span>Enhancing...</>
+                            : <><i className="bi bi-magic me-1"></i>AI Enhance</>}
                         </button>
                       </div>
                     </div>
@@ -2990,55 +3054,102 @@ function ResumeCustomize({ profile, onUpdate, profiles = [], currentProfileId, o
                       </div>
 
                       {resumeData.experiences.length === 0 ? (
-                        <div className="alert alert-secondary text-center" style={{ borderRadius: '12px' }}>
-                          <i className="bi bi-briefcase me-2"></i>
-                          No experience added yet
+                        <div className="text-center py-4" style={{ border: '2px dashed #dee2e6', borderRadius: '12px' }}>
+                          <i className="bi bi-briefcase display-6 text-muted d-block mb-2"></i>
+                          <p className="text-muted mb-3">ยังไม่มีประสบการณ์ทำงาน</p>
+                          <button
+                            className="btn btn-sm btn-dark"
+                            style={{ borderRadius: '8px' }}
+                            onClick={() => {
+                              const newExp = { id: Date.now(), position: '', company: '', location: '', startDate: '', endDate: '', current: false, bulletPoints: [''] }
+                              setResumeData(prev => ({ ...prev, experiences: [...prev.experiences, newExp] }))
+                            }}
+                          >
+                            <i className="bi bi-plus-circle me-1"></i> เพิ่มประสบการณ์แรก
+                          </button>
                         </div>
                       ) : (
                         resumeData.experiences.map((exp, index) => (
                           <div key={exp.id} className="card mb-3" style={{ borderRadius: '12px' }}>
                             <div className="card-body">
                               <div className="d-flex justify-content-between align-items-start mb-2">
-                                <strong className="small">Experience #{index + 1}</strong>
+                                <strong className="small text-muted">#{index + 1} {exp.position || 'Untitled'}</strong>
                                 <button
                                   className="btn btn-sm btn-outline-danger"
                                   style={{ borderRadius: '6px', padding: '2px 8px' }}
-                                  onClick={() => {
-                                    setResumeData(prev => ({
-                                      ...prev,
-                                      experiences: prev.experiences.filter(e => e.id !== exp.id)
-                                    }))
-                                  }}
+                                  onClick={() => setResumeData(prev => ({ ...prev, experiences: prev.experiences.filter(e => e.id !== exp.id) }))}
                                 >
                                   <i className="bi bi-trash"></i>
                                 </button>
                               </div>
-                              <div className="mb-2">
-                                <input
-                                  type="text"
-                                  className="form-control form-control-sm mb-1"
-                                  placeholder="Position Title"
-                                  value={exp.position}
-                                  onChange={(e) => {
-                                    const newExps = [...resumeData.experiences]
-                                    newExps[index].position = e.target.value
-                                    setResumeData(prev => ({ ...prev, experiences: newExps }))
-                                  }}
-                                  style={{ borderRadius: '6px', fontSize: '13px' }}
-                                />
-                                <input
-                                  type="text"
-                                  className="form-control form-control-sm"
-                                  placeholder="Company Name"
-                                  value={exp.company}
-                                  onChange={(e) => {
-                                    const newExps = [...resumeData.experiences]
-                                    newExps[index].company = e.target.value
-                                    setResumeData(prev => ({ ...prev, experiences: newExps }))
-                                  }}
-                                  style={{ borderRadius: '6px', fontSize: '13px' }}
-                                />
+                              <div className="row g-2 mb-2">
+                                <div className="col-6">
+                                  <input type="text" className="form-control form-control-sm" placeholder="Position Title *" value={exp.position}
+                                    onChange={(e) => { const n = [...resumeData.experiences]; n[index] = { ...n[index], position: e.target.value }; setResumeData(prev => ({ ...prev, experiences: n })) }}
+                                    style={{ borderRadius: '6px', fontSize: '13px' }} />
+                                </div>
+                                <div className="col-6">
+                                  <input type="text" className="form-control form-control-sm" placeholder="Company Name *" value={exp.company}
+                                    onChange={(e) => { const n = [...resumeData.experiences]; n[index] = { ...n[index], company: e.target.value }; setResumeData(prev => ({ ...prev, experiences: n })) }}
+                                    style={{ borderRadius: '6px', fontSize: '13px' }} />
+                                </div>
+                                <div className="col-12">
+                                  <input type="text" className="form-control form-control-sm" placeholder="Location (e.g. Bangkok, Thailand)" value={exp.location || ''}
+                                    onChange={(e) => { const n = [...resumeData.experiences]; n[index] = { ...n[index], location: e.target.value }; setResumeData(prev => ({ ...prev, experiences: n })) }}
+                                    style={{ borderRadius: '6px', fontSize: '13px' }} />
+                                </div>
+                                <div className="col-5">
+                                  <label className="form-label small mb-1 text-muted">Start Date</label>
+                                  <input type="month" className="form-control form-control-sm" value={exp.startDate || ''}
+                                    onChange={(e) => { const n = [...resumeData.experiences]; n[index] = { ...n[index], startDate: e.target.value }; setResumeData(prev => ({ ...prev, experiences: n })) }}
+                                    style={{ borderRadius: '6px', fontSize: '13px' }} />
+                                </div>
+                                <div className="col-5">
+                                  <label className="form-label small mb-1 text-muted">End Date</label>
+                                  <input type="month" className="form-control form-control-sm" value={exp.endDate || ''} disabled={exp.current}
+                                    onChange={(e) => { const n = [...resumeData.experiences]; n[index] = { ...n[index], endDate: e.target.value }; setResumeData(prev => ({ ...prev, experiences: n })) }}
+                                    style={{ borderRadius: '6px', fontSize: '13px' }} />
+                                </div>
+                                <div className="col-2 d-flex align-items-end pb-1">
+                                  <div className="form-check">
+                                    <input type="checkbox" className="form-check-input" id={`current-${exp.id}`} checked={exp.current || false}
+                                      onChange={(e) => { const n = [...resumeData.experiences]; n[index] = { ...n[index], current: e.target.checked, endDate: e.target.checked ? '' : n[index].endDate }; setResumeData(prev => ({ ...prev, experiences: n })) }} />
+                                    <label className="form-check-label small" htmlFor={`current-${exp.id}`}>Now</label>
+                                  </div>
+                                </div>
                               </div>
+                              <label className="form-label small fw-semibold">Key Achievements / Responsibilities</label>
+                              {(exp.bulletPoints || ['']).map((bp, bpIdx) => (
+                                <div key={bpIdx} className="d-flex gap-1 mb-1">
+                                  <span className="text-muted mt-1" style={{ fontSize: '12px' }}>•</span>
+                                  <input type="text" className="form-control form-control-sm" placeholder="e.g. Led team of 5 engineers to deliver project on time" value={bp}
+                                    onChange={(e) => {
+                                      const n = [...resumeData.experiences]
+                                      const bps = [...(n[index].bulletPoints || [''])]
+                                      bps[bpIdx] = e.target.value
+                                      n[index] = { ...n[index], bulletPoints: bps }
+                                      setResumeData(prev => ({ ...prev, experiences: n }))
+                                    }}
+                                    style={{ borderRadius: '6px', fontSize: '13px' }} />
+                                  <button className="btn btn-sm btn-outline-secondary" style={{ padding: '2px 6px', borderRadius: '6px' }}
+                                    onClick={() => {
+                                      const n = [...resumeData.experiences]
+                                      const bps = (n[index].bulletPoints || ['']).filter((_, i) => i !== bpIdx)
+                                      n[index] = { ...n[index], bulletPoints: bps.length ? bps : [''] }
+                                      setResumeData(prev => ({ ...prev, experiences: n }))
+                                    }}>
+                                    <i className="bi bi-dash"></i>
+                                  </button>
+                                </div>
+                              ))}
+                              <button className="btn btn-sm btn-outline-dark mt-1" style={{ borderRadius: '6px', fontSize: '12px' }}
+                                onClick={() => {
+                                  const n = [...resumeData.experiences]
+                                  n[index] = { ...n[index], bulletPoints: [...(n[index].bulletPoints || ['']), ''] }
+                                  setResumeData(prev => ({ ...prev, experiences: n }))
+                                }}>
+                                <i className="bi bi-plus me-1"></i>Add bullet
+                              </button>
                             </div>
                           </div>
                         ))
@@ -3077,54 +3188,61 @@ function ResumeCustomize({ profile, onUpdate, profiles = [], currentProfileId, o
                       </div>
 
                       {resumeData.education.length === 0 ? (
-                        <div className="alert alert-secondary text-center" style={{ borderRadius: '12px' }}>
-                          <i className="bi bi-mortarboard me-2"></i>
-                          No education added yet
+                        <div className="text-center py-4" style={{ border: '2px dashed #dee2e6', borderRadius: '12px' }}>
+                          <i className="bi bi-mortarboard display-6 text-muted d-block mb-2"></i>
+                          <p className="text-muted mb-3">ยังไม่มีข้อมูลการศึกษา</p>
+                          <button className="btn btn-sm btn-dark" style={{ borderRadius: '8px' }}
+                            onClick={() => {
+                              const newEdu = { id: Date.now(), degree: '', school: '', location: '', startDate: '', graduationDate: '', gpa: '' }
+                              setResumeData(prev => ({ ...prev, education: [...prev.education, newEdu] }))
+                            }}>
+                            <i className="bi bi-plus-circle me-1"></i> เพิ่มการศึกษา
+                          </button>
                         </div>
                       ) : (
                         resumeData.education.map((edu, index) => (
                           <div key={edu.id} className="card mb-3" style={{ borderRadius: '12px' }}>
                             <div className="card-body">
                               <div className="d-flex justify-content-between align-items-start mb-2">
-                                <strong className="small">Education #{index + 1}</strong>
-                                <button
-                                  className="btn btn-sm btn-outline-danger"
-                                  style={{ borderRadius: '6px', padding: '2px 8px' }}
-                                  onClick={() => {
-                                    setResumeData(prev => ({
-                                      ...prev,
-                                      education: prev.education.filter(e => e.id !== edu.id)
-                                    }))
-                                  }}
-                                >
+                                <strong className="small text-muted">#{index + 1} {edu.school || 'Untitled'}</strong>
+                                <button className="btn btn-sm btn-outline-danger" style={{ borderRadius: '6px', padding: '2px 8px' }}
+                                  onClick={() => setResumeData(prev => ({ ...prev, education: prev.education.filter(e => e.id !== edu.id) }))}>
                                   <i className="bi bi-trash"></i>
                                 </button>
                               </div>
-                              <div className="mb-2">
-                                <input
-                                  type="text"
-                                  className="form-control form-control-sm mb-1"
-                                  placeholder="Degree / Certificate"
-                                  value={edu.degree}
-                                  onChange={(e) => {
-                                    const newEdu = [...resumeData.education]
-                                    newEdu[index].degree = e.target.value
-                                    setResumeData(prev => ({ ...prev, education: newEdu }))
-                                  }}
-                                  style={{ borderRadius: '6px', fontSize: '13px' }}
-                                />
-                                <input
-                                  type="text"
-                                  className="form-control form-control-sm"
-                                  placeholder="School Name"
-                                  value={edu.school}
-                                  onChange={(e) => {
-                                    const newEdu = [...resumeData.education]
-                                    newEdu[index].school = e.target.value
-                                    setResumeData(prev => ({ ...prev, education: newEdu }))
-                                  }}
-                                  style={{ borderRadius: '6px', fontSize: '13px' }}
-                                />
+                              <div className="row g-2">
+                                <div className="col-12">
+                                  <input type="text" className="form-control form-control-sm" placeholder="Degree / Major (e.g. B.Eng Computer Engineering)" value={edu.degree}
+                                    onChange={(e) => { const n = [...resumeData.education]; n[index] = { ...n[index], degree: e.target.value }; setResumeData(prev => ({ ...prev, education: n })) }}
+                                    style={{ borderRadius: '6px', fontSize: '13px' }} />
+                                </div>
+                                <div className="col-8">
+                                  <input type="text" className="form-control form-control-sm" placeholder="School / University *" value={edu.school}
+                                    onChange={(e) => { const n = [...resumeData.education]; n[index] = { ...n[index], school: e.target.value }; setResumeData(prev => ({ ...prev, education: n })) }}
+                                    style={{ borderRadius: '6px', fontSize: '13px' }} />
+                                </div>
+                                <div className="col-4">
+                                  <input type="text" className="form-control form-control-sm" placeholder="GPA (e.g. 3.52)" value={edu.gpa || ''}
+                                    onChange={(e) => { const n = [...resumeData.education]; n[index] = { ...n[index], gpa: e.target.value }; setResumeData(prev => ({ ...prev, education: n })) }}
+                                    style={{ borderRadius: '6px', fontSize: '13px' }} />
+                                </div>
+                                <div className="col-6">
+                                  <label className="form-label small mb-1 text-muted">Start Date</label>
+                                  <input type="month" className="form-control form-control-sm" value={edu.startDate || ''}
+                                    onChange={(e) => { const n = [...resumeData.education]; n[index] = { ...n[index], startDate: e.target.value }; setResumeData(prev => ({ ...prev, education: n })) }}
+                                    style={{ borderRadius: '6px', fontSize: '13px' }} />
+                                </div>
+                                <div className="col-6">
+                                  <label className="form-label small mb-1 text-muted">Graduation Date</label>
+                                  <input type="month" className="form-control form-control-sm" value={edu.graduationDate || ''}
+                                    onChange={(e) => { const n = [...resumeData.education]; n[index] = { ...n[index], graduationDate: e.target.value }; setResumeData(prev => ({ ...prev, education: n })) }}
+                                    style={{ borderRadius: '6px', fontSize: '13px' }} />
+                                </div>
+                                <div className="col-12">
+                                  <input type="text" className="form-control form-control-sm" placeholder="Location (optional)" value={edu.location || ''}
+                                    onChange={(e) => { const n = [...resumeData.education]; n[index] = { ...n[index], location: e.target.value }; setResumeData(prev => ({ ...prev, education: n })) }}
+                                    style={{ borderRadius: '6px', fontSize: '13px' }} />
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -3761,9 +3879,10 @@ function ResumeCustomize({ profile, onUpdate, profiles = [], currentProfileId, o
                   )}
 
                   {/* Other tabs content */}
-                  {!['ai-generator', 'template', 'header', 'summary', 'experience', 'education', 'skills', 'projects', 'languages', 'interests', 'styling'].includes(activeTab) && (
-                    <div className="alert alert-secondary" style={{ borderRadius: '12px' }}>
-                      Content for {activeTab} coming soon...
+                  {!['ai-generator', 'template', 'header', 'summary', 'highlights', 'experience', 'education', 'skills', 'projects', 'languages', 'interests', 'styling'].includes(activeTab) && (
+                    <div className="alert alert-info" style={{ borderRadius: '12px' }}>
+                      <i className="bi bi-info-circle me-2"></i>
+                      เลือก tab ด้านซ้ายเพื่อแก้ไขข้อมูล Resume ของคุณ
                     </div>
                   )}
                 </div>

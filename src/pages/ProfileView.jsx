@@ -1,13 +1,15 @@
-import React, { useEffect, useState, useRef } from 'react'
+﻿import React, { useEffect, useState, useRef } from 'react'
 import { useTranslation } from 'react-i18next';
-import { useParams } from 'react-router-dom'
-import { getAllProfiles } from '../services/profileManager'
+import { useParams, useSearchParams } from 'react-router-dom'
+import { getAllProfiles, getProfileById } from '../services/profileManager'
 import { getProfessionalProfileByUsername } from '../services/professionalProfileManager'
 import { getCurrentUser } from '../services/auth'
 import { recordProfileView } from '../services/profileAnalytics'
 import SectionRenderer from '../components/SectionRenderer'
 import { createReport } from '../services/reportService'
 import { Modal, Button, Form } from 'react-bootstrap'
+import VtreePublicView from './VtreePublicView'
+import ResumePublicView from './ResumePublicView'
 import './profileview.css'
 import ig from "../img/ig.png"
 import facebook from "../img/facebook.png"
@@ -42,6 +44,7 @@ const getAudioFromDB = async () => {
 const ProfileView = () => {
   const { t } = useTranslation();
   const { username, profileType } = useParams()
+  const [searchParams] = useSearchParams()
   const [profile, setProfile] = useState(null)
   const [audioFile, setAudioFile] = useState(null)
   const audioRef = useRef(null)
@@ -59,6 +62,27 @@ const ProfileView = () => {
     // load saved profile
     const loadProfile = async () => {
       try {
+        // If a direct profile ID is provided (preview mode), load it immediately
+        const previewId = searchParams.get('id')
+        if (previewId) {
+          const directProfile = await getProfileById(previewId)
+          if (directProfile) {
+            setProfile(directProfile.data)
+            setActualProfileType(directProfile.type)
+            if (directProfile.data.hasAudio) {
+              try {
+                const audioData = await getAudioFromDB()
+                setAudioFile(audioData)
+              } catch (err) {
+                setAudioFile(null)
+              }
+            } else {
+              setAudioFile(null)
+            }
+            return
+          }
+        }
+
         // Try to load from multi-profile system first
         const allProfiles = await getAllProfiles()
         if (allProfiles && allProfiles.length > 0) {
@@ -642,61 +666,65 @@ const ProfileView = () => {
       </audio>
     )
 
-    // Default Card Layout
+    // Default Card Layout â€” matches the Customize preview 1:1
     if (layoutType === 'default') {
-      // Show avatar, username, and background overlay like preview
-      const overlay = typeof profile.bgOverlay === 'number' ? profile.bgOverlay : 0.3;
-      const cardStyle = profile.bgImage
-        ? {
-            backgroundImage: `linear-gradient(rgba(0,0,0,${overlay}), rgba(0,0,0,${overlay})), url(${profile.bgImage})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            minHeight: '260px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            position: 'relative',
-          }
-        : {
-            background: profile.blockColor || '#050505',
-            minHeight: '260px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            position: 'relative',
-          };
-
       return (
         <>
           {commonAudioControl}
-          <div className="profile-card" style={cardStyle}>
-            {profile.avatar && (
-              <img
-                src={profile.avatar}
-                alt="avatar"
-                className="avatar-circle"
-                style={{
-                  width: 96,
-                  height: 96,
-                  borderRadius: '50%',
-                  objectFit: 'cover',
-                  marginBottom: 12,
-                  border: `3px solid ${profile.nameColor || '#fff'}`,
-                  boxShadow: `0 12px 36px ${hexToRgba(profile.nameColor, 0.28)}`,
-                  background: '#fff',
-                }}
+          <div style={{
+            minHeight: '100vh',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '48px 20px',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              width: '100%',
+              maxWidth: 760,
+              padding: profile.bgImage ? 24 : 12,
+              background: profile.bgImage ? 'transparent' : (profile.blockColor || '#ffffff'),
+              borderRadius: profile.bgImage ? 0 : 8,
+            }}>
+              {profile.avatar && (
+                <img
+                  src={profile.avatar}
+                  alt="avatar"
+                  className="avatar-circle"
+                  style={{
+                    boxShadow: `0 10px 30px ${hexToRgba(profile.nameColor || '#fff', 0.28)}`,
+                    border: `4px solid ${hexToRgba(profile.nameColor || '#fff', 0.12)}`,
+                  }}
+                />
+              )}
+              <div style={{
+                fontSize: 28,
+                fontWeight: 700,
+                color: profile.nameColor || '#ffffff',
+                textShadow: buildTextGlow(profile.nameColor || '#ffffff'),
+                marginBottom: 8
+              }}>
+                {profile.displayName || profile.username}
+              </div>
+              {profile.description && (
+                <div style={{
+                  color: descColor,
+                  fontSize: 15,
+                  marginBottom: 16,
+                  lineHeight: 1.6
+                }}>
+                  {profile.description}
+                </div>
+              )}
+              {renderSocialIcons()}
+              <SectionRenderer
+                sections={profile.sections || []}
+                theme={{ nameColor: profile.nameColor, descColor: profile.descColor, blockColor: profile.blockColor }}
               />
-            )}
-            <div className="username-glow" style={{
-              color: profile.titleColor || profile.nameColor || '#fff',
-              fontWeight: 700,
-              fontSize: 28,
-              marginBottom: 0,
-              textAlign: 'center',
-            }}>{profile.username}</div>
+            </div>
           </div>
+          {commonAudioElement}
         </>
       );
     }
@@ -1124,12 +1152,10 @@ const ProfileView = () => {
 
   // Check if this is vtree or resume type and render appropriate view
   if (actualProfileType === 'vtree') {
-    const VtreePublicView = require('./VtreePublicView').default
     return <VtreePublicView profile={profile} />
   }
   
   if (actualProfileType === 'resume') {
-    const ResumePublicView = require('./ResumePublicView').default
     return <ResumePublicView profile={profile} />
   }
 
@@ -1193,3 +1219,4 @@ const ProfileView = () => {
 }
 
 export default ProfileView
+

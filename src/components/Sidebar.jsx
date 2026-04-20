@@ -213,7 +213,7 @@ function Sidebar() {
           <li className="nav-item mb-3">
             <NavLink to="/saved-profiles" className={({isActive}) => `d-flex align-items-center text-decoration-none text-dark nav-link ${isActive ? 'active' : ''}`}>
               <i className="bi bi-heart fs-4 me-2"></i>
-              <span className="nav-label">{t('saved_profiles')}</span>
+              <span className="nav-label">Saved Themes</span>
             </NavLink>
           </li>
           <li className="nav-item mb-3">
