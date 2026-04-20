@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Container, Row, Col, Card, Button, Badge, InputGroup, FormControl, Modal, Form } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { getCurrentUser } from '../services/auth';
+import { supabase } from '../supabaseClient';
 import { 
   getCurrentUserProfessionalProfile, 
   createProfessionalProfile, 
@@ -66,6 +67,7 @@ function MyProfile() {
   const [analytics, setAnalytics] = useState(null);
   const [showFullAbout, setShowFullAbout] = useState(false);
   const [profileId, setProfileId] = useState(null);
+  const [profileError, setProfileError] = useState(null);
   const [showSharePanel, setShowSharePanel] = useState(false);
   const [showAddHighlight, setShowAddHighlight] = useState(false);
   const [showAddActivity, setShowAddActivity] = useState(false);
@@ -155,6 +157,18 @@ function MyProfile() {
     }
 
     try {
+      // ตรวจสอบ Supabase session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        // session หมดอายุหรือ email ยังไม่ได้ยืนยัน — ลอง refresh
+        const { data: refreshData } = await supabase.auth.refreshSession();
+        if (!refreshData?.session) {
+          setProfileError('session_invalid');
+          setIsLoading(false);
+          return;
+        }
+      }
+
       // Get or create professional profile for current user
       let professionalProfile = await getCurrentUserProfessionalProfile();
       if (!professionalProfile) {
@@ -179,6 +193,7 @@ function MyProfile() {
     } catch (err) {
       console.error('Failed to load professional profile', err);
       toast.error('ไม่สามารถโหลดโปรไฟล์ได้ กรุณาลองใหม่');
+      setProfileError('unknown');
     } finally {
       setIsLoading(false);
     }
@@ -674,13 +689,29 @@ function MyProfile() {
   }
 
   if (!profile) {
+    const isSessionError = profileError === 'session_invalid';
     return (
       <div className="dashboard-shell p-4">
         <div className="dashboard-card d-flex">
           <Sidebar />
           <main className="dashboard-main p-4">
-            <div className="text-center py-5 text-muted">
-              <p>ไม่พบข้อมูล Profile — กรุณารัน SQL ใน Supabase ก่อน</p>
+            <div className="text-center py-5">
+              {isSessionError ? (
+                <>
+                  <i className="bi bi-envelope-check display-4 text-warning mb-3 d-block"></i>
+                  <h5 className="fw-bold">กรุณายืนยัน Email ของคุณก่อนนะครับ</h5>
+                  <p className="text-muted">ระบบส่งลิงก์ยืนยันไปที่ Email ที่คุณสมัครไว้แล้ว<br/>กรุณาเปิด Email แล้วกดลิงก์ยืนยัน จากนั้น Login เข้ามาใหม่อีกครั้ง</p>
+                  <Button variant="primary" onClick={() => { supabase.auth.signOut(); navigate('/'); }}>
+                    <i className="bi bi-box-arrow-left me-2"></i>ออกจากระบบ แล้ว Login ใหม่
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <i className="bi bi-person-x display-4 text-muted mb-3 d-block"></i>
+                  <p className="text-muted">ไม่พบข้อมูล Profile กรุณาลองใหม่อีกครั้ง</p>
+                  <Button variant="outline-primary" onClick={loadProfile}>ลองใหม่</Button>
+                </>
+              )}
             </div>
           </main>
         </div>
