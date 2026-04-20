@@ -2,28 +2,35 @@
 import { supabase } from '../supabaseClient'
 
 export async function getReports() {
-  const { data, error } = await supabase
-    .from('reports')
-    .select('*')
-    .order('created_at', { ascending: false })
-  if (error) { console.error('getReports:', error); return [] }
-  return data || []
+  try {
+    const res = await fetch('http://localhost:5000/api/admin/reports')
+    const result = await res.json()
+    return result.data || []
+  } catch (err) {
+    console.error('getReports:', err)
+    return []
+  }
 }
 
 export async function createReport(reportData) {
-  const { data: { session } } = await supabase.auth.getSession(); const user = session?.user
-  const { data, error } = await supabase
-    .from('reports')
-    .insert({
-      ...reportData,
-      reporter_id: user?.id || null,
-      status: 'pending',
-      created_at: new Date().toISOString()
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    const reporter_id = session?.user?.id || null
+
+    const res = await fetch('http://localhost:5000/api/reports', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...reportData,
+        reporter_id
+      })
     })
-    .select()
-    .single()
-  if (error) { console.error('createReport:', error); return null }
-  return data
+    const result = await res.json()
+    return result.ok ? result.data : null
+  } catch (err) {
+    console.error('createReport:', err)
+    return null
+  }
 }
 
 export async function updateReportStatus(id, status) {
@@ -36,9 +43,16 @@ export async function updateReportStatus(id, status) {
 }
 
 export async function deleteReport(id) {
-  const { error } = await supabase.from('reports').delete().eq('id', id)
-  if (error) { console.error('deleteReport:', error); return false }
-  return true
+  try {
+    const res = await fetch(`http://localhost:5000/api/admin/reports/${id}`, {
+      method: 'DELETE'
+    })
+    const result = await res.json()
+    return result.ok
+  } catch (err) {
+    console.error('deleteReport:', err)
+    return false
+  }
 }
 
 

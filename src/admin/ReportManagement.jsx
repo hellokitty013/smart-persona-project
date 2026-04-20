@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { getReports, updateReportStatus, deleteReport } from '../services/reportService'
+import { deleteProfileAdmin } from '../services/profileManager'
 import { getCurrentUser } from '../services/auth'
 import './css/styles.css'
 
@@ -30,6 +31,20 @@ export default function ReportManagement() {
         }
     }
 
+    const handleDeleteProfile = async (report) => {
+        if (window.confirm(`Are you sure you want to delete the profile: ${report.targetUser}?`)) {
+            const success = await deleteProfileAdmin(report.profile_id)
+            if (success) {
+                // Also delete the report since the profile is gone
+                await deleteReport(report.id)
+                await loadReports()
+                alert('Profile and report deleted successfully')
+            } else {
+                alert('Failed to delete profile')
+            }
+        }
+    }
+
     const filteredReports = reports.filter(r => filter === 'all' || r.status === filter)
 
     return (
@@ -56,10 +71,7 @@ export default function ReportManagement() {
                                     <div className="sb-nav-link-icon"><i className="fas fa-users"></i></div>
                                     Users
                                 </a>
-                                <a className="nav-link" href="/admin/themes">
-                                    <div className="sb-nav-link-icon"><i className="fas fa-palette"></i></div>
-                                    Themes
-                                </a>
+
                                 <a className="nav-link" href="/admin/profiles">
                                     <div className="sb-nav-link-icon"><i className="fas fa-id-card"></i></div>
                                     Profiles
@@ -139,27 +151,13 @@ export default function ReportManagement() {
                                                         </td>
                                                         <td>
                                                             <div className="btn-group">
-                                                                {report.status === 'pending' && (
-                                                                    <>
-                                                                        <button
-                                                                            className="btn btn-sm btn-success"
-                                                                            onClick={() => handleStatusChange(report.id, 'resolved')}
-                                                                        >
-                                                                            Resolve
-                                                                        </button>
-                                                                        <button
-                                                                            className="btn btn-sm btn-secondary"
-                                                                            onClick={() => handleStatusChange(report.id, 'dismissed')}
-                                                                        >
-                                                                            Dismiss
-                                                                        </button>
-                                                                    </>
-                                                                )}
                                                                 <button
-                                                                    className="btn btn-sm btn-danger"
+                                                                    className="btn btn-sm btn-outline-danger"
                                                                     onClick={() => handleDelete(report.id)}
+                                                                    title="Delete report only"
                                                                 >
-                                                                    <i className="fas fa-trash"></i>
+                                                                    <i className="fas fa-trash me-1"></i>
+                                                                    Delete Report
                                                                 </button>
                                                             </div>
                                                         </td>

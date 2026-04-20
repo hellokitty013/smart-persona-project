@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { getAllProfiles, updateProfile } from '../services/profileManager'
+import { getAllProfileCardsAdmin, updateProfile } from '../services/profileManager'
 import { getCurrentUser } from '../services/auth'
 import './css/styles.css'
 
@@ -15,7 +15,8 @@ export default function ProfileModeration() {
     }, [])
 
     const loadProfiles = async () => {
-        setPersonalProfiles(await getAllProfiles())
+        const data = await getAllProfileCardsAdmin()
+        setPersonalProfiles(data)
     }
 
     const handleToggleVisibility = async (profile) => {
@@ -27,7 +28,7 @@ export default function ProfileModeration() {
 
     const filteredProfiles = personalProfiles.filter(p => {
         const name = p.data?.displayName || p.name || ''
-        const username = p.username || p.data?.username || ''
+        const username = p.profiles?.username || p.data?.username || ''
         const type = p.type || ''
         const search = searchTerm.toLowerCase()
         return name.toLowerCase().includes(search) ||
@@ -59,10 +60,7 @@ export default function ProfileModeration() {
                                     <div className="sb-nav-link-icon"><i className="fas fa-users"></i></div>
                                     Users
                                 </a>
-                                <a className="nav-link" href="/admin/themes">
-                                    <div className="sb-nav-link-icon"><i className="fas fa-palette"></i></div>
-                                    Themes
-                                </a>
+
                                 <a className="nav-link active" href="/admin/profiles">
                                     <div className="sb-nav-link-icon"><i className="fas fa-id-card"></i></div>
                                     Profiles
@@ -126,7 +124,7 @@ export default function ProfileModeration() {
                                                 {filteredProfiles.map(profile => (
                                                     <tr key={profile.id}>
                                                         <td>{profile.data?.displayName || profile.name || 'Untitled'}</td>
-                                                        <td>{profile.username || profile.data?.username || '-'}</td>
+                                                        <td>{profile.profiles?.username || profile.data?.username || '-'}</td>
                                                         <td>
                                                             <span className="badge bg-info text-dark">
                                                                 {profile.type || 'personal'}
@@ -142,7 +140,7 @@ export default function ProfileModeration() {
                                                         <td>
                                                             <div className="btn-group">
                                                                 <a
-                                                                    href={`/u/${profile.data?.username || 'user'}`}
+                                                                    href={`/u/${profile.profiles?.username || profile.data?.username || 'user'}/${profile.type || 'personal'}?id=${profile.id}`}
                                                                     target="_blank"
                                                                     rel="noreferrer"
                                                                     className="btn btn-sm btn-outline-primary"

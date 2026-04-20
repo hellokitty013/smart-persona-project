@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState, useRef } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { useTranslation } from 'react-i18next';
 import { useParams, useSearchParams } from 'react-router-dom'
 import { getAllProfiles, getProfileById } from '../services/profileManager'
@@ -57,6 +57,7 @@ const ProfileView = () => {
   const [reportReason, setReportReason] = useState('Inappropriate Content')
   const [reportDetails, setReportDetails] = useState('')
   const [reportSubmitted, setReportSubmitted] = useState(false)
+  const [profileId, setProfileId] = useState(null)
 
   useEffect(() => {
     // load saved profile
@@ -68,6 +69,7 @@ const ProfileView = () => {
           const directProfile = await getProfileById(previewId)
           if (directProfile) {
             setProfile(directProfile.data)
+            setProfileId(directProfile.id)
             setActualProfileType(directProfile.type)
             if (directProfile.data.hasAudio) {
               try {
@@ -102,6 +104,7 @@ const ProfileView = () => {
 
           if (targetProfile) {
             setProfile(targetProfile.data);
+            setProfileId(targetProfile.id);
             // Load audio from IndexedDB if exists
             if (targetProfile.data.hasAudio) {
               try {
@@ -253,11 +256,9 @@ const ProfileView = () => {
   const handleReportSubmit = () => {
     if (!profile) return
     createReport({
-      targetUser: profile.username,
-      reporter: getCurrentUser()?.username || 'Anonymous',
+      profile_id: profileId || profile.username,
       reason: reportReason,
-      details: reportDetails,
-      profileType: 'personal'
+      details: reportDetails
     })
     setReportSubmitted(true)
     setTimeout(() => {

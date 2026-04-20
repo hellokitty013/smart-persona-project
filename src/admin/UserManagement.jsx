@@ -10,7 +10,7 @@ export default function UserManagement() {
 
     // Edit Modal State
     const [editingUser, setEditingUser] = useState(null)
-    const [editFormData, setEditFormData] = useState({ firstName: '', lastName: '', email: '', role: 'user' })
+    const [editFormData, setEditFormData] = useState({ username: '', email: '', role: 'user' })
 
     // Change Password Modal State
     const [showPasswordModal, setShowPasswordModal] = useState(false)
@@ -117,8 +117,7 @@ export default function UserManagement() {
     const handleEditClick = (user) => {
         setEditingUser(user)
         setEditFormData({
-            firstName: user.firstName || '',
-            lastName: user.lastName || '',
+            username: user.username || '',
             email: user.email || '',
             role: user.role || 'user'
         })
@@ -158,10 +157,7 @@ export default function UserManagement() {
                                     <div className="sb-nav-link-icon"><i className="fas fa-users"></i></div>
                                     Users
                                 </a>
-                                <a className="nav-link" href="/admin/themes">
-                                    <div className="sb-nav-link-icon"><i className="fas fa-palette"></i></div>
-                                    Themes
-                                </a>
+
                                 <a className="nav-link" href="/admin/profiles">
                                     <div className="sb-nav-link-icon"><i className="fas fa-id-card"></i></div>
                                     Profiles
@@ -290,21 +286,12 @@ export default function UserManagement() {
                             </div>
                             <div className="modal-body">
                                 <div className="mb-3">
-                                    <label className="form-label">First Name</label>
+                                    <label className="form-label">Username</label>
                                     <input
                                         type="text"
                                         className="form-control"
-                                        value={editFormData.firstName}
-                                        onChange={e => setEditFormData({ ...editFormData, firstName: e.target.value })}
-                                    />
-                                </div>
-                                <div className="mb-3">
-                                    <label className="form-label">Last Name</label>
-                                    <input
-                                        type="text"
-                                        className="form-control"
-                                        value={editFormData.lastName}
-                                        onChange={e => setEditFormData({ ...editFormData, lastName: e.target.value })}
+                                        value={editFormData.username}
+                                        onChange={e => setEditFormData({ ...editFormData, username: e.target.value })}
                                     />
                                 </div>
                                 <div className="mb-3">

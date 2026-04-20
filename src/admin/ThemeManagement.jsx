@@ -57,10 +57,7 @@ export default function ThemeManagement() {
                                     <div className="sb-nav-link-icon"><i className="fas fa-users"></i></div>
                                     Users
                                 </a>
-                                <a className="nav-link active" href="/admin/themes">
-                                    <div className="sb-nav-link-icon"><i className="fas fa-palette"></i></div>
-                                    Themes
-                                </a>
+
                                 <a className="nav-link" href="/admin/profiles">
                                     <div className="sb-nav-link-icon"><i className="fas fa-id-card"></i></div>
                                     Profiles
