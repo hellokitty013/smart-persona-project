@@ -5,6 +5,7 @@ import Sidebar from '../components/Sidebar'
 import ProfileCard from '../components/ProfileCard'
 import StatsCard from '../components/StatsCard'
 import LoginModal from '../components/LoginModal'
+import { useToast } from '../components/Toast'
 import { getCurrentUser } from '../services/auth'
 import { getProfileAnalytics } from '../services/profileAnalytics'
 import { getCurrentUserProfessionalProfile, createProfessionalProfile, updateProfessionalProfile } from '../services/professionalProfileManager'
@@ -13,6 +14,7 @@ import './dashboard.css'
 function Dashboard() {
   const { t } = useTranslation();
   const navigate = useNavigate()
+  const toast = useToast()
   const [showLoginModal, setShowLoginModal] = useState(false)
   const [recentActivity, setRecentActivity] = useState([])
   const [profile, setProfile] = useState(null)
@@ -129,9 +131,11 @@ function Dashboard() {
         }
       } catch (err) {
         console.warn('Failed to load professional profile', err)
+        toast.error('ไม่สามารถโหลดข้อมูลโปรไฟล์ได้ กรุณาลองใหม่')
       }
     }
     load()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return (
@@ -154,7 +158,7 @@ function Dashboard() {
 
           <div className="row g-3">
             <div className="col-12 col-lg-8">
-              <StatsCard analytics={analytics} />
+              <StatsCard analytics={analytics} vheartLikes={profile?.vheartLikes ?? 0} />
               
               {/* Profile Overview */}
               <div className="mt-3 p-3 card-like">

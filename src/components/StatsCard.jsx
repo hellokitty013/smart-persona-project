@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 
-function StatsCard({ analytics }) {
+function StatsCard({ analytics, vheartLikes = 0 }) {
   const [stats, setStats] = useState({ views: 0, unique: 0, week: 0 })
 
   useEffect(() => {
@@ -55,6 +55,13 @@ function StatsCard({ analytics }) {
         <div className="col">
           <div className="stat-value fw-bold">{stats.week}</div>
           <div className="text-muted small">Views (7d)</div>
+        </div>
+        <div className="col">
+          <div className="stat-value fw-bold" style={{ color: '#e11d48' }}>
+            <i className="bi bi-heart-fill me-1" style={{ fontSize: '0.9rem' }}></i>
+            {vheartLikes}
+          </div>
+          <div className="text-muted small">Vheart</div>
         </div>
       </div>
     </div>

@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App.jsx'
 import { ThemeProvider } from './contexts/ThemeContext'
+import { ToastProvider } from './components/Toast'
 import './i18n' // Import i18n configuration
 import './index.css'
 
@@ -15,7 +16,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <ThemeProvider>
       <BrowserRouter>
-        <App />
+        <ToastProvider>
+          <App />
+        </ToastProvider>
       </BrowserRouter>
     </ThemeProvider>
   </React.StrictMode>,

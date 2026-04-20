@@ -5,7 +5,7 @@ const resources = {
   en: {
     translation: {
       // Sidebar
-      "professional_profile": "Professional Profile",
+      "professional_profile": "home",
       "dashboard": "Dashboard",
       "explore_people": "Explore People",
       "saved_profiles": "Saved Profiles",
@@ -205,7 +205,7 @@ const resources = {
   th: {
     translation: {
       // Sidebar
-      "professional_profile": "โปรไฟล์มืออาชีพ",
+      "professional_profile": "home",
       "dashboard": "แดชบอร์ด",
       "explore_people": "ค้นหาคน",
       "saved_profiles": "โปรไฟล์ที่บันทึก",
