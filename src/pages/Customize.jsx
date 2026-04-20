@@ -231,6 +231,7 @@ const Customize = () => {
     })
     const [themeMeta, setThemeMeta] = useState(null)
     const [themeTokens, setThemeTokens] = useState({})
+    const [vtreeExtras, setVtreeExtras] = useState({})
     const isCreativeProfile = profileType === 'creative'
 
     const themeSourceLabel = themeMeta ? formatThemeSource(themeMeta.source) : ''
@@ -313,6 +314,19 @@ const Customize = () => {
                     if (data.layoutSettings) {
                         setLayoutSettings(data.layoutSettings)
                     }
+
+                    // Load vtree-specific fields
+                    const vtreeFieldKeys = [
+                        'profileImage', 'wallpaperImage', 'wallpaperStyle', 'wallpaperColor',
+                        'overlayOpacity', 'pageFont', 'pageTextColor', 'buttonTextColor',
+                        'buttonStyle', 'buttonCorners', 'buttonShadow', 'buttonColor',
+                        'titleFont', 'titleSize', 'titleStyle', 'profileImageLayout'
+                    ]
+                    const loadedVtreeExtras = {}
+                    vtreeFieldKeys.forEach(f => {
+                        if (data[f] !== undefined) loadedVtreeExtras[f] = data[f]
+                    })
+                    setVtreeExtras(loadedVtreeExtras)
                     
                     // Load audio from IndexedDB
                     if (data.hasAudio) {
@@ -470,7 +484,8 @@ const Customize = () => {
                 audioEndTime: audioEndTime || 0,
                 sections: profileSections,
                 themeMeta: themeMeta || null,
-                themeTokens
+                themeTokens,
+                ...vtreeExtras  // vtree-specific fields (wallpaperImage, buttonStyle, etc.)
             }
             
             await updateProfile(currentProfileId, updates)
@@ -493,7 +508,7 @@ const Customize = () => {
 
     // preview wrapper style depends on optional bgImage (image) or bgColor
     const previewWrapperStyle = bgImage ? {
-        backgroundImage: `url(${bgImage})`,
+        backgroundImage: `linear-gradient(rgba(0,0,0,${bgOverlay}), rgba(0,0,0,${bgOverlay})), url(${bgImage})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         borderRadius: 10,
@@ -709,7 +724,8 @@ const Customize = () => {
                                 titleStyle: layoutSettings.titleStyle,
                                 titleFont: layoutSettings.titleFont,
                                 titleSize: layoutSettings.titleSize,
-                                socialLinks: socialLinks
+                                socialLinks: socialLinks,
+                                ...vtreeExtras
                             }}
                             onUpdate={(updates) => {
                                 if (updates.displayName !== undefined) setDisplayName(updates.displayName)
@@ -725,6 +741,19 @@ const Customize = () => {
                                 if (updates.titleFont) newLayoutSettings.titleFont = updates.titleFont
                                 if (updates.titleSize) newLayoutSettings.titleSize = updates.titleSize
                                 setLayoutSettings(newLayoutSettings)
+
+                                // Capture all vtree-specific fields
+                                const vtreeFields = [
+                                    'profileImage', 'wallpaperImage', 'wallpaperStyle', 'wallpaperColor',
+                                    'overlayOpacity', 'pageFont', 'pageTextColor', 'buttonTextColor',
+                                    'buttonStyle', 'buttonCorners', 'buttonShadow', 'buttonColor',
+                                    'titleFont', 'titleSize', 'titleStyle', 'profileImageLayout'
+                                ]
+                                const newExtras = { ...vtreeExtras }
+                                vtreeFields.forEach(f => {
+                                    if (updates[f] !== undefined) newExtras[f] = updates[f]
+                                })
+                                setVtreeExtras(newExtras)
                             }}
                             onSave={saveProfile}
                         />
@@ -1310,7 +1339,7 @@ const Customize = () => {
                                             color: nameColor || '#ffffff',
                                             textShadow: buildTextGlow(nameColor || '#ffffff')
                                     }}>
-                                        {username || 'username'}
+                                        {displayName || username || 'username'}
                                     </div>
                                     <div className="preview-description" style={{color: descColor || (hexLuminance(bgColor || '#050505') > 0.6 ? '#111' : '#fff')}}>{description}</div>
                                 </div>

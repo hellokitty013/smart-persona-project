@@ -209,18 +209,10 @@ function MyProfiles() {
   }
 
   const handleViewProfile = (profile) => {
-    const user = getCurrentUser()
-    const username = user?.username || profile.data?.username || 'demo'
-    
-    // Map profile type to the correct URL path
-    const typePathMap = {
-      'personal': 'personal',
-      'vtree': 'vtree',
-      'resume': 'resume'
-    }
-    
-    const pathType = typePathMap[profile.type] || profile.type
-    window.open(`/u/${username}/${pathType}`, '_blank')
+    const username = profile.data?.username || 'preview'
+    const pathType = profile.type || 'personal'
+    // Pass profile ID so ProfileView loads the exact profile regardless of username
+    window.open(`/u/${username}/${pathType}?id=${profile.id}`, '_blank')
   }
 
   const handleSwitchToSignup = () => {

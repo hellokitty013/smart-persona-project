@@ -374,12 +374,40 @@ export const getCommunityThemes = async () => {
   return data || []
 }
 
+const LS_SAVED_THEMES_KEY = 'vere_saved_themes'
+
+const lsGetSavedThemes = () => {
+  try { return JSON.parse(localStorage.getItem(LS_SAVED_THEMES_KEY) || '[]') } catch { return [] }
+}
+
+const lsSaveTheme = (theme) => {
+  try {
+    const stored = lsGetSavedThemes()
+    const idx = stored.findIndex(t => t.id === theme.id)
+    if (idx >= 0) stored[idx] = theme
+    else stored.unshift(theme)
+    localStorage.setItem(LS_SAVED_THEMES_KEY, JSON.stringify(stored))
+  } catch {}
+}
+
+const lsDeleteTheme = (themeId) => {
+  try {
+    const stored = lsGetSavedThemes().filter(t => t.id !== themeId)
+    localStorage.setItem(LS_SAVED_THEMES_KEY, JSON.stringify(stored))
+  } catch {}
+}
+
 export const getSavedThemes = async () => {
   const { data: { session } } = await supabase.auth.getSession(); const user = session?.user
-  if (!user) return []
+  if (!user) return lsGetSavedThemes()
   const { data, error } = await supabase.from('saved_themes').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
-  if (error) { console.error('getSavedThemes:', error); return [] }
-  return data || []
+  if (error) {
+    console.error('getSavedThemes:', error)
+    return lsGetSavedThemes()
+  }
+  const fromDb = data || []
+  const local = lsGetSavedThemes().filter(l => !fromDb.find(d => d.id === l.id))
+  return [...fromDb, ...local]
 }
 
 export const getThemesForType = async (profileType) => {
@@ -424,18 +452,23 @@ export const publishTheme = async (themeInput) => {
 
 export const saveThemeLocally = async (themeInput) => {
   const { data: { session } } = await supabase.auth.getSession(); const user = session?.user
-  if (!user) return null
   const theme = normalizeThemeInput(themeInput, 'saved')
-  const { data, error } = await supabase
-    .from('saved_themes')
-    .upsert({ ...theme, user_id: user.id }, { onConflict: 'id' })
-    .select().single()
-  if (error) { console.error('saveThemeLocally:', error); return theme }
-  return data
+  if (user) {
+    const { data, error } = await supabase
+      .from('saved_themes')
+      .upsert({ ...theme, user_id: user.id }, { onConflict: 'id' })
+      .select().single()
+    if (!error) return data
+    console.error('saveThemeLocally (Supabase):', error)
+  }
+  // fallback to localStorage
+  lsSaveTheme(theme)
+  return theme
 }
 
 export const deleteSavedTheme = async (themeId) => {
   const { data: { session } } = await supabase.auth.getSession(); const user = session?.user
+  lsDeleteTheme(themeId)
   if (!user) return
   await supabase.from('saved_themes').delete().eq('id', themeId).eq('user_id', user.id)
 }
