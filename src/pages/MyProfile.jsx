@@ -21,6 +21,7 @@ import {
 import { getProfileAnalytics } from '../services/profileAnalytics';
 import Sidebar from '../components/Sidebar';
 import LoginModal from '../components/LoginModal';
+import { useToast } from '../components/Toast';
 import { fetchSocialProfile, SOCIAL_PROVIDERS } from '../services/socialSync';
 import { generateAIProfileDraft, AI_TONES, AI_FOCUS_OPTIONS } from '../services/aiAssistant';
 import { VIEW_MODES, PROFILE_PRESETS, VIEW_MODE_LABELS } from '../config/profileViewModes';
@@ -58,6 +59,7 @@ const normalizeContactLinks = (links = []) => {
 function MyProfile() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const toast = useToast();
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [profile, setProfile] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -176,6 +178,7 @@ function MyProfile() {
       }
     } catch (err) {
       console.error('Failed to load professional profile', err);
+      toast.error('ไม่สามารถโหลดโปรไฟล์ได้ กรุณาลองใหม่');
     } finally {
       setIsLoading(false);
     }
@@ -199,11 +202,13 @@ function MyProfile() {
         setProfile(prev => ({ ...prev, avatar: dataUrl }));
         if (profileId) {
           await updateProfessionalProfile(profileId, { avatar: dataUrl });
+          toast.success('อัปโหลดรูปโปรไฟล์สำเร็จ');
         }
       } else if (type === 'cover') {
         setProfile(prev => ({ ...prev, bgImage: dataUrl }));
         if (profileId) {
           await updateProfessionalProfile(profileId, { bgImage: dataUrl });
+          toast.success('อัปโหลดรูปปก สำเร็จ');
         }
       }
     };

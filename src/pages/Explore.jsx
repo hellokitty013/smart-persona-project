@@ -4,13 +4,15 @@ import { Container, Row, Col, Card, Button, Form, Badge, Pagination } from 'reac
 import { useNavigate } from 'react-router-dom';
 import { getCurrentUser } from '../services/auth';
 import { getPublicProfessionalProfiles, searchProfessionalProfiles, getAllSkills, getAllLocations, adjustVheartLikes } from '../services/professionalProfileManager';
-import { isProfileSaved, saveProfile, unsaveProfile } from '../services/savedProfiles';
+import { isProfileSaved, saveProfile, unsaveProfile, getLikedProfiles, likeProfile, unlikeProfile } from '../services/savedProfiles';
 import Sidebar from '../components/Sidebar';
 import LoginModal from '../components/LoginModal';
+import { useToast } from '../components/Toast';
 
 function Explore() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const toast = useToast();
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSkill, setSelectedSkill] = useState('');
@@ -20,16 +22,18 @@ function Explore() {
   const [profiles, setProfiles] = useState([]);
   const [filteredProfiles, setFilteredProfiles] = useState([]);
   const [savedProfileIds, setSavedProfileIds] = useState(new Set());
+  const [likedProfileIds, setLikedProfileIds] = useState(new Set());
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const profilesPerPage = 12;
 
-  // Load saved IDs once on mount
+  // Load saved IDs and liked IDs once on mount
   useEffect(() => {
     import('../services/savedProfiles').then(({ getSavedProfiles }) => {
       getSavedProfiles().then(ids => setSavedProfileIds(new Set(ids)));
     });
+    getLikedProfiles().then(ids => setLikedProfileIds(new Set(ids)));
   }, []);
 
   // Load public profiles on mount
@@ -122,17 +126,30 @@ function Explore() {
       setShowLoginModal(true);
       return;
     }
-    const alreadySaved = savedProfileIds.has(profileId);
-    if (alreadySaved) {
-      await unsaveProfile(profileId);
+    const alreadyLiked = likedProfileIds.has(profileId);
+    if (alreadyLiked) {
+      await unlikeProfile(profileId);
       await adjustVheartLikes(profileId, -1);
-      setSavedProfileIds(prev => { const next = new Set(prev); next.delete(profileId); return next; });
+      setLikedProfileIds(prev => { const next = new Set(prev); next.delete(profileId); return next; });
+      toast.info('ยกเลิกใจแล้ว');
     } else {
-      await saveProfile(profileId);
+      await likeProfile(profileId);
       await adjustVheartLikes(profileId, 1);
-      setSavedProfileIds(prev => new Set([...prev, profileId]));
+      setLikedProfileIds(prev => new Set([...prev, profileId]));
+      toast.success('กดใจสำเร็จ! ❤️');
     }
     setFilteredProfiles(prev => [...prev]);
+  };
+
+  const handleShareProfile = (e, profile) => {
+    e.stopPropagation();
+    const username = profile.username || profile.data?.username;
+    const url = `${window.location.origin}/pro/${username}`;
+    navigator.clipboard.writeText(url).then(() => {
+      toast.success('คัดลอกลิงก์แล้ว!');
+    }).catch(() => {
+      toast.error('ไม่สามารถคัดลอกลิงก์ได้');
+    });
   };
 
   const handleProfileClick = (profile) => {
@@ -140,9 +157,9 @@ function Explore() {
     if (!user) {
       setShowLoginModal(true);
     } else {
-      const username = profile.data?.username;
+      const username = profile.username || profile.data?.username;
       if (username) {
-        navigate(`/u/${username}`);
+        navigate(`/pro/${username}`);
       }
     }
   };
@@ -286,7 +303,7 @@ function Explore() {
               const data = profile.data || {};
               const skills = data.skills || [];
               const topSkills = skills.slice(0, 3);
-              const isSaved = savedProfileIds.has(profile.id);
+              const isSaved = likedProfileIds.has(profile.id);
 
               return (
                 <Col key={profile.id || index} md={6} lg={4}>
@@ -401,8 +418,16 @@ function Explore() {
                         </div>
                       )}
 
-                        <Button variant="dark" size="sm" className="w-100">
+                        <Button variant="dark" size="sm" className="w-100 mb-2">
                           {t('view_profile')}
+                        </Button>
+                        <Button
+                          variant="outline-secondary"
+                          size="sm"
+                          className="w-100"
+                          onClick={(e) => handleShareProfile(e, profile)}
+                        >
+                          <i className="bi bi-share me-1"></i>แชร์
                         </Button>
                     </Card.Body>
                   </Card>

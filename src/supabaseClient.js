@@ -1,8 +1,12 @@
 // src/supabaseClient.js
 import { createClient } from '@supabase/supabase-js'
 
-// ใส่ URL และ Key ของคุณที่นี่ (หรือใช้ .env file)
-const supabaseUrl = 'https://aonkndmgaqloeqmibeeh.supabase.co'
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvbmtuZG1nYXFsb2VxbWliZWVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwNDg3MDksImV4cCI6MjA5MDYyNDcwOX0.wark7XJngSZ1XXse7bhWXLXkIGDfD6SN6sIdCphD6jg'
+// ถ้ารัน Supabase local บนเครื่องเพื่อน ให้แก้ค่าใน .env.local:
+//   VITE_SUPABASE_URL=http://<IP-เพื่อน>:54321
+//   VITE_SUPABASE_ANON_KEY=<anon key จาก supabase status>
+//
+// หรือแก้ตรงนี้เลย:
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://aonkndmgaqloeqmibeeh.supabase.co'
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvbmtuZG1nYXFsb2VxbWliZWVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwNDg3MDksImV4cCI6MjA5MDYyNDcwOX0.wark7XJngSZ1XXse7bhWXLXkIGDfD6SN6sIdCphD6jg'
 
 export const supabase = createClient(supabaseUrl, supabaseKey)

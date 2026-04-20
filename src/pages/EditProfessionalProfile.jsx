@@ -18,10 +18,12 @@ import {
 } from '../services/professionalProfileManager';
 import Sidebar from '../components/Sidebar';
 import LoginModal from '../components/LoginModal';
+import { useToast } from '../components/Toast';
 
 function EditProfessionalProfile() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const toast = useToast();
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [profile, setProfile] = useState(null);
   const [profileId, setProfileId] = useState(null);
@@ -107,7 +109,7 @@ function EditProfessionalProfile() {
       isPublic
     });
 
-    alert('Profile updated successfully!');
+    toast.success('บันทึกข้อมูลพื้นฐานสำเร็จ!');
   };
 
   // Experience handlers
@@ -157,12 +159,14 @@ function EditProfessionalProfile() {
 
     setShowExperienceModal(false);
     await loadProfile();
+    toast.success('บันทึกประสบการณ์ทำงานสำเร็จ!');
   };
 
   const handleDeleteExperience = async (expId) => {
-    if (window.confirm('Are you sure you want to delete this experience?')) {
+    if (window.confirm('ต้องการลบประสบการณ์นี้ใช่ไหม?')) {
       await deleteExperience(profileId, expId);
       await loadProfile();
+      toast.info('ลบประสบการณ์ทำงานแล้ว');
     }
   };
 
@@ -209,12 +213,14 @@ function EditProfessionalProfile() {
 
     setShowEducationModal(false);
     await loadProfile();
+    toast.success('บันทึกการศึกษาสำเร็จ!');
   };
 
   const handleDeleteEducation = async (eduId) => {
-    if (window.confirm('Are you sure you want to delete this education?')) {
+    if (window.confirm('ต้องการลบข้อมูลการศึกษานี้ใช่ไหม?')) {
       await deleteEducation(profileId, eduId);
       await loadProfile();
+      toast.info('ลบข้อมูลการศึกษาแล้ว');
     }
   };
 

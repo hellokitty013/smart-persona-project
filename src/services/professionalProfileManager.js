@@ -275,11 +275,9 @@ export const removeActivityEntry = async (profileId, entryId) => {
 // ─── Likes / Active Profile ───────────────────────────────────────────────────
 
 export const adjustVheartLikes = async (profileId, delta = 1) => {
-  const profile = await getProfessionalProfileById(profileId)
-  if (!profile) return null
-  const current = profile.data.vheartLikes ?? profile.data.followers ?? 0
-  const nextValue = Math.max(0, current + delta)
-  return updateProfessionalProfile(profileId, { vheartLikes: nextValue, followers: nextValue })
+  const { error } = await supabase.rpc('adjust_vheart_likes', { p_profile_id: profileId, p_delta: delta })
+  if (error) { console.error('adjustVheartLikes:', error); return null }
+  return true
 }
 
 export const setActiveProfessionalProfile = (profileId) => {
