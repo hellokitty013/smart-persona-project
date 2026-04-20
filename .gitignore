@@ -25,3 +25,8 @@ dist-ssr
 
 # Database volume files
 server/mysql-data/
+
+# Environment variables (never commit these!)
+.env
+.env.*
+server/.env

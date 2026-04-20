@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { login, isAdmin } from '../services/auth'
+import { login } from '../services/auth'
 
 export default function AdminLogin() {
   const [identifier, setIdentifier] = useState('')
@@ -20,8 +20,7 @@ export default function AdminLogin() {
       return
     }
     // Only allow admins to proceed
-    const userIsAdmin = await isAdmin();
-    if (!userIsAdmin) {
+    if (res.user?.role !== 'admin') {
       setError('User is not an admin')
       return
     }

@@ -155,18 +155,6 @@ function MyProfile() {
     }
 
     try {
-      // ตรวจสอบ Supabase session
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        // session หมดอายุหรือ email ยังไม่ได้ยืนยัน — ลอง refresh
-        const { data: refreshData } = await supabase.auth.refreshSession();
-        if (!refreshData?.session) {
-          setProfileError('session_invalid');
-          setIsLoading(false);
-          return;
-        }
-      }
-
       // Get or create professional profile for current user
       let professionalProfile = await getCurrentUserProfessionalProfile();
       if (!professionalProfile) {
