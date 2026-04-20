@@ -28,11 +28,12 @@ import './App.css'
 function App() {
   const location = useLocation()
   const isProfileView = location.pathname.startsWith('/u/')
+  const isAdminView = location.pathname.startsWith('/admin')
 
   return (
     <>
 
-      {!isProfileView && <VereHeader />}
+      {(!isProfileView && !isAdminView) && <VereHeader />}
 
       <Routes>
         <Route path="/" element={<HomePage />} />
