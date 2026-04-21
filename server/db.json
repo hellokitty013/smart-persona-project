@@ -162,6 +162,18 @@
       "role": "user",
       "token": "sf86d42vu1i",
       "createdAt": "2026-04-20T20:17:42.218Z"
+    },
+    {
+      "id": "f307ed94-bfef-4df7-bf01-86ec18012aa7",
+      "username": "Sdv",
+      "email": "Awdawd@gmail.com",
+      "password": "44444444",
+      "firstName": "Sdv",
+      "lastName": "-",
+      "birthDate": "2000-01-01",
+      "role": "user",
+      "token": "u82jm0xini",
+      "createdAt": "2026-04-21T00:48:50.153Z"
     }
   ]
 }

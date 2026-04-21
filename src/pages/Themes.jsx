@@ -24,18 +24,6 @@ const THEME_SOURCE_LABELS = {
 }
 
 const THEME_TAB_COPY = {
-  personal: {
-    titleKey: 'personal_profile_themes',
-    title: 'Personal Profile Themes',
-    subtitleKey: 'discover_personal_themes',
-    subtitle: 'Discover themes for your personal profile page'
-  },
-  // creative: {
-  //   titleKey: 'creative_profile_themes',
-  //   title: 'Creative Studio Themes',
-  //   subtitleKey: 'discover_creative_themes',
-  //   subtitle: 'Bold looks for designers, artists, and studios'
-  // },
   vtree: {
     titleKey: 'vtree_link_themes',
     title: 'Vtree Link Themes',
@@ -102,7 +90,7 @@ const Themes = () => {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
-  const [selectedTab, setSelectedTab] = useState('personal')
+  const [selectedTab, setSelectedTab] = useState('vtree')
   const [selectedFilter, setSelectedFilter] = useState('all')
   const [showLoginModal, setShowLoginModal] = useState(false)
   const [toast, setToast] = useState({ show: false, message: '', theme: '' })
@@ -112,7 +100,7 @@ const Themes = () => {
   const [isSnapshotting, setIsSnapshotting] = useState(false)
   const [currentUser, setCurrentUser] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
-  const activeTabCopy = THEME_TAB_COPY[selectedTab] || THEME_TAB_COPY.personal
+  const activeTabCopy = THEME_TAB_COPY[selectedTab] || THEME_TAB_COPY.vtree
 
   useEffect(() => {
     setCurrentUser(getCurrentUser())
@@ -129,7 +117,7 @@ const Themes = () => {
 
   useEffect(() => {
     const params = new URLSearchParams(location.search)
-    const current = params.get('tab') || 'personal'
+    const current = params.get('tab') || 'vtree'
     if (current === selectedTab) {
       return
     }
@@ -225,7 +213,7 @@ const Themes = () => {
       const name = themeNameInput.trim() || `${activeProfile.name || 'My'} Theme`
       const baseTheme = createThemeFromProfile(
         {
-          profileType: activeProfile.type || 'personal',
+          profileType: activeProfile.type === 'personal' ? 'vtree' : (activeProfile.type || 'vtree'),
           name,
           profileData: activeProfile.data,
           preview: activeProfile.data?.bgImage
@@ -246,8 +234,8 @@ const Themes = () => {
         showToastMessage('Theme saved to My Themes')
       }
 
-      if ((activeProfile.type || 'personal') !== selectedTab) {
-        setSelectedTab(activeProfile.type || 'personal')
+      if ((activeProfile.type === 'personal' ? 'vtree' : (activeProfile.type || 'vtree')) !== selectedTab) {
+        setSelectedTab(activeProfile.type === 'personal' ? 'vtree' : (activeProfile.type || 'vtree'))
       } else {
         refreshThemes()
       }
@@ -385,14 +373,6 @@ const Themes = () => {
             </div>
 
             <div className="themes-tabs mb-4">
-              <button
-                className={`tab-btn ${selectedTab === 'personal' ? 'active' : ''}`}
-                onClick={() => setSelectedTab('personal')}
-              >
-                <i className="bi bi-person-fill me-2"></i>
-                {t('personal')}
-              </button>
-              {/* Removed creative tab */}
               <button
                 className={`tab-btn ${selectedTab === 'vtree' ? 'active' : ''}`}
                 onClick={() => setSelectedTab('vtree')}

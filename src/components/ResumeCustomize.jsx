@@ -3953,7 +3953,7 @@ function ResumeCustomize({ profile, onUpdate, profiles = [], currentProfileId, o
                     style={{ padding: previewShellPadding }}
                   >
                     {/* Resume Preview */}
-                    <div style={{
+                    <div id="resume-pdf-target" style={{
                       backgroundColor: 'white',
                       boxShadow: previewPaperShadow,
                       borderRadius: resumeData.template === 'minimal' ? '0px' : resumeData.template === 'creative' ? '20px' : '8px',

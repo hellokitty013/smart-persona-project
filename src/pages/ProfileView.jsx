@@ -152,8 +152,7 @@ const ProfileView = () => {
     }
 
     loadProfile().finally(() => {
-      // Minimum loading time for smooth animation
-      setTimeout(() => setIsLoading(false), 1000)
+      setIsLoading(false)
     })
   }, [username, profileType])
 
@@ -708,6 +707,21 @@ const ProfileView = () => {
               }}>
                 {profile.displayName || profile.username}
               </div>
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
+                {Object.entries(profile.socialLinks || {}).filter(([, url]) => url && url.trim() !== '').map(([key, url]) => {
+                  const social = socialIcons[key]
+                  if (!social) return null
+                  return (
+                    <a key={key} href={url} target="_blank" rel="noopener noreferrer" title={social.name}
+                      style={{ display: 'inline-block', transition: 'transform 0.2s', opacity: 0.9 }}
+                      onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.15)'; e.currentTarget.style.opacity = '1' }}
+                      onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.opacity = '0.9' }}
+                    >
+                      <img src={social.icon} alt={social.name} style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'contain' }} />
+                    </a>
+                  )
+                })}
+              </div>
               {profile.description && (
                 <div style={{
                   color: descColor,
@@ -718,7 +732,6 @@ const ProfileView = () => {
                   {profile.description}
                 </div>
               )}
-              {renderSocialIcons()}
               <SectionRenderer
                 sections={profile.sections || []}
                 theme={{ nameColor: profile.nameColor, descColor: profile.descColor, blockColor: profile.blockColor }}
@@ -763,6 +776,21 @@ const ProfileView = () => {
             }}>
               {profile.displayName || profile.username}
             </h1>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
+              {Object.entries(profile.socialLinks || {}).filter(([, url]) => url && url.trim() !== '').map(([key, url]) => {
+                const social = socialIcons[key]
+                if (!social) return null
+                return (
+                  <a key={key} href={url} target="_blank" rel="noopener noreferrer" title={social.name}
+                    style={{ display: 'inline-block', transition: 'transform 0.2s', opacity: 0.9 }}
+                    onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.15)'; e.currentTarget.style.opacity = '1' }}
+                    onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.opacity = '0.9' }}
+                  >
+                    <img src={social.icon} alt={social.name} style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'contain' }} />
+                  </a>
+                )
+              })}
+            </div>
             <p style={{
               fontSize: 15,
               color: descColor,
@@ -773,7 +801,6 @@ const ProfileView = () => {
             }}>
               {profile.description}
             </p>
-            {renderSocialIcons()}
 
             {/* Render profile sections */}
             <SectionRenderer

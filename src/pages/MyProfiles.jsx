@@ -15,10 +15,11 @@ function MyProfiles() {
   const [activeProfileId, setActiveProfileId] = useState(null)
   const [showLoginModal, setShowLoginModal] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
-  const [newProfileType, setNewProfileType] = useState('personal')
+  const [newProfileType, setNewProfileType] = useState('vtree')
   const [newProfileName, setNewProfileName] = useState('')
   const [isCreating, setIsCreating] = useState(false)
   const [createError, setCreateError] = useState('')
+  const [isLoading, setIsLoading] = useState(true)
   const selectedProfileType = profileTypes.find(t => t.value === newProfileType)
 
   useEffect(() => {
@@ -30,9 +31,11 @@ function MyProfiles() {
   }, [])
 
   const loadProfiles = async () => {
+    setIsLoading(true)
     const allProfiles = await getAllProfiles()
     setProfiles(allProfiles)
     setActiveProfileId(getActiveProfileId())
+    setIsLoading(false)
   }
 
   const handleCreateProfile = () => {
@@ -247,7 +250,13 @@ function MyProfiles() {
             </button>
           </div>
 
-          {profiles.length === 0 ? (
+          {isLoading ? (
+            <div className="text-center p-5">
+              <div className="spinner-border text-secondary" role="status">
+                <span className="visually-hidden">Loading...</span>
+              </div>
+            </div>
+          ) : profiles.length === 0 ? (
             <div className="text-center p-5">
               <i className="bi bi-inbox" style={{ fontSize: '48px', color: '#ccc' }}></i>
               <h5 className="mt-3 text-muted">No profiles yet</h5>
