@@ -121,7 +121,7 @@ function Sidebar() {
 
   const profile = activeProfileRecord?.data || legacyProfile || null
   const displayProfile = professionalProfileData || profile
-  const sidebarName = displayProfile?.username || displayProfile?.displayName || 'Guest'
+  const sidebarName = displayProfile?.displayName || displayProfile?.username || 'Guest'
 
   const handleVisibilityChange = async (makePublic) => {
     if (!profile || isUpdatingVisibility) return

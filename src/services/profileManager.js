@@ -14,10 +14,46 @@ export function setActiveProfile(profileId) {
   try { localStorage.setItem(ACTIVE_PROFILE_KEY, profileId) } catch {}
 }
 
+// ─── Internal Helpers ────────────────────────────────────────────────────────
+import { getCurrentUser } from './auth'
+
+async function getSessionUser() {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (session?.user) return session.user
+  
+  // Fallback to local session
+  const localUser = getCurrentUser()
+  if (!localUser) return null
+  
+  if (localUser.id) {
+    return { id: localUser.id, email: localUser.email }
+  }
+
+  // Session repair: fetch ID from backend if missing
+  if (localUser.username) {
+    try {
+      const resp = await fetch(`http://localhost:5000/api/users/by-username/${localUser.username}`)
+      const result = await resp.json()
+      
+      if (result.ok && result.user?.id) {
+        // Repair local session
+        const { setSession } = await import('./auth')
+        const updatedUser = { ...localUser, id: result.user.id }
+        setSession(updatedUser)
+        return { id: result.user.id, email: localUser.email }
+      }
+    } catch (err) {
+      console.error('Session repair failed:', err)
+    }
+  }
+  
+  return null
+}
+
 // ─── CRUD ─────────────────────────────────────────────────────────────────────
 
 export async function getAllProfiles() {
-  const { data: { session } } = await supabase.auth.getSession(); const user = session?.user
+  const user = await getSessionUser()
   if (!user) return []
   const { data, error } = await supabase
     .from('profile_cards')
@@ -26,6 +62,17 @@ export async function getAllProfiles() {
     .order('created_at', { ascending: true })
   if (error) { console.error('getAllProfiles:', error); return [] }
   return data || []
+}
+
+export async function getAllProfileCardsAdmin() {
+  try {
+    const res = await fetch('http://localhost:5000/api/admin/profile-cards')
+    const result = await res.json()
+    return result.data || []
+  } catch (err) {
+    console.error('getAllProfileCardsAdmin:', err)
+    return []
+  }
 }
 
 export const getProfiles = getAllProfiles
@@ -51,7 +98,7 @@ export async function getActiveProfile() {
 }
 
 export async function createProfile({ type, name }) {
-  const { data: { session } } = await supabase.auth.getSession(); const user = session?.user
+  const user = await getSessionUser()
   if (!user) throw new Error('Not authenticated')
 
   const templateData = applyTemplate(type)
@@ -96,7 +143,7 @@ export async function createProfile({ type, name }) {
 }
 
 export async function updateProfile(profileId, updates) {
-  const { data: { session } } = await supabase.auth.getSession(); const user = session?.user
+  const user = await getSessionUser()
   if (!user) throw new Error('Not authenticated')
 
   const current = await getProfileById(profileId)
@@ -117,7 +164,7 @@ export async function updateProfile(profileId, updates) {
 }
 
 export async function deleteProfile(profileId) {
-  const { data: { session } } = await supabase.auth.getSession(); const user = session?.user
+  const user = await getSessionUser()
   if (!user) throw new Error('Not authenticated')
 
   const { error } = await supabase
@@ -134,10 +181,23 @@ export async function deleteProfile(profileId) {
   return await getAllProfiles()
 }
 
+export async function deleteProfileAdmin(profileId) {
+  try {
+    const res = await fetch(`http://localhost:5000/api/admin/profiles/${profileId}`, {
+      method: 'DELETE'
+    })
+    const result = await res.json()
+    return result.ok
+  } catch (err) {
+    console.error('deleteProfileAdmin:', err)
+    return false
+  }
+}
+
 // ─── Migration (localStorage → Supabase) ─────────────────────────────────────
 
 export async function migrateOldProfile() {
-  const { data: { session } } = await supabase.auth.getSession(); const user = session?.user
+  const user = await getSessionUser()
   if (!user) return
 
   const existing = await getAllProfiles()

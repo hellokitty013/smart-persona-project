@@ -1,7 +1,8 @@
 import React, { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getCurrentUser, logout, getUsers } from '../services/auth'
-import { getAllProfiles } from '../services/profileManager'
+import { getAllProfessionalProfiles as getAllProfiles } from '../services/professionalProfileManager'
+import { getAllProfileCardsAdmin } from '../services/profileManager'
 import './css/styles.css'
 
 export default function AdminDashboard() {
@@ -15,12 +16,13 @@ export default function AdminDashboard() {
       const admins = users.filter(u => u.role === 'admin')
       const regular = users.filter(u => u.role !== 'admin')
       const personalProfiles = await getAllProfiles()
+      const allProfileCards = await getAllProfileCardsAdmin()
 
       setStats({
         totalUsers: users.length,
         regularUsers: regular.length,
         totalAdmins: admins.length,
-        totalProfiles: personalProfiles.length
+        totalProfiles: allProfileCards.length
       })
 
       // Calculate Profile Types for Chart
@@ -165,10 +167,7 @@ export default function AdminDashboard() {
                   <div className="sb-nav-link-icon"><i className="fas fa-users"></i></div>
                   Users
                 </a>
-                <a className="nav-link" href="/admin/themes">
-                  <div className="sb-nav-link-icon"><i className="fas fa-palette"></i></div>
-                  Themes
-                </a>
+
                 <a className="nav-link" href="/admin/profiles">
                   <div className="sb-nav-link-icon"><i className="fas fa-id-card"></i></div>
                   Profiles
@@ -251,19 +250,7 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                 </div>
-                <div className="col-lg-6 mb-4">
-                  <div className="card">
-                    <div className="card-header">
-                      <i className="fas fa-chart-pie me-1"></i>
-                      Profile Types Distribution
-                    </div>
-                    <div className="card-body">
-                      <div style={{ height: '300px' }}>
-                        <canvas id="areaChart"></canvas>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+
               </div>
             </div>
           </main>

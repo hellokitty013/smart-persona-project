@@ -65,6 +65,7 @@ async function createAdmin() {
         id: userId,
         username,
         email,
+        password,
         full_name: 'Admin User',
         role: 'admin',
         created_at: new Date().toISOString(),

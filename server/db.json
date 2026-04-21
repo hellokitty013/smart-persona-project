@@ -80,10 +80,10 @@
       "createdAt": "2026-04-01T12:50:17.592Z"
     },
     {
-      "id": 1775050000000,
+      "id": "fb340775-2c95-4b09-983f-22b9d7dbb8b9",
       "username": "admin1",
       "email": "admin1@smartpersona.com",
-      "password": "123456",
+      "password": "12345",
       "firstName": "Admin",
       "lastName": "User",
       "birthDate": "2000-01-01",
@@ -104,16 +104,64 @@
       "createdAt": "2026-04-20T09:58:45.307Z"
     },
     {
-      "id": 1776682255589,
+      "id": "ce0423b9-db50-462d-a7ec-4fc378c24610",
       "username": "aum",
       "email": "itsiwa.tor2006@gmail.com",
-      "password": "12345678",
+      "password": "123",
       "firstName": "aum",
       "lastName": "-",
       "birthDate": "2000-01-01",
       "role": "user",
       "token": "loc4kckvbw",
       "createdAt": "2026-04-20T10:50:55.589Z"
+    },
+    {
+      "id": 1776707030636,
+      "username": "aumt",
+      "email": "aum@gmail.com",
+      "password": "12",
+      "firstName": "aumt",
+      "lastName": "-",
+      "birthDate": "2000-01-01",
+      "role": "user",
+      "token": "kj9rtioq5r",
+      "createdAt": "2026-04-20T17:43:50.636Z"
+    },
+    {
+      "id": 1776707129774,
+      "username": "testuser1",
+      "email": "test1@test.com",
+      "password": "password123",
+      "firstName": "Test",
+      "lastName": "User",
+      "birthDate": null,
+      "role": "user",
+      "token": "m561w70djpq",
+      "createdAt": "2026-04-20T17:45:29.774Z"
+    },
+    {
+      "id": "658464de-bb5e-4e6f-8869-5c93d82b645f",
+      "username": "mala",
+      "email": "ma@gmail.com",
+      "password": "123",
+      "firstName": "MalaNew",
+      "lastName": "-",
+      "birthDate": "2000-01-01",
+      "role": "user",
+      "token": "nsl6r5tolb",
+      "createdAt": "2026-04-20T17:48:12.748Z"
+    },
+    {
+      "id": "a2e27c93-e323-4aa9-b874-26493e3eab3e",
+      "username": "user",
+      "email": "user@gmail.com",
+      "password": "123",
+      "firstName": "user",
+      "lastName": "-",
+      "birthDate": "2000-01-01",
+      "role": "user",
+      "token": "sf86d42vu1i",
+      "createdAt": "2026-04-20T20:17:42.218Z"
     }
   ]
 }

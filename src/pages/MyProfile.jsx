@@ -113,7 +113,7 @@ function MyProfile() {
   const [skillsInput, setSkillsInput] = useState('');
   const [contactForm, setContactForm] = useState({ email: '', phone: '', address: '', tagline: '', links: [] });
   const [showBasicsModal, setShowBasicsModal] = useState(false);
-  const [basicInfoForm, setBasicInfoForm] = useState({ displayName: '', jobTitle: '', tagline: '', description: '' });
+  const [basicInfoForm, setBasicInfoForm] = useState({ username: '', email: '', displayName: '', jobTitle: '', tagline: '', description: '' });
   const avatarInputRef = React.useRef(null);
   const coverInputRef = React.useRef(null);
   const [showSocialImport, setShowSocialImport] = useState(false);
@@ -628,7 +628,10 @@ function MyProfile() {
   };
 
   const openBasicsModal = () => {
+    const user = getCurrentUser();
     setBasicInfoForm({
+      username: profile?.username || user?.username || '',
+      email: profile?.email || user?.email || '',
       displayName: profile?.displayName || '',
       jobTitle: profile?.jobTitle || '',
       tagline: profile?.tagline || '',
@@ -640,6 +643,32 @@ function MyProfile() {
   const handleBasicsSubmit = async (event) => {
     event.preventDefault();
     if (!profileId) return;
+
+    const oldUsername = profile.username;
+    const newUsername = basicInfoForm.username?.trim();
+    const newEmail = basicInfoForm.email?.trim();
+
+    // 1. Handle username or email change if needed
+    if ((newUsername && newUsername !== oldUsername) || (newEmail && newEmail !== profile.email)) {
+      const { updateUser, setSession, getCurrentUser } = await import('../services/auth');
+      const updates = {};
+      if (newUsername && newUsername !== oldUsername) updates.username = newUsername;
+      if (newEmail && newEmail !== profile.email) updates.email = newEmail;
+
+      const ok = await updateUser(oldUsername, { ...updates });
+      if (!ok) {
+        toast.error('ไม่สามารถเปลี่ยนข้อมูลได้ (Username/Email อาจถูกใช้ไปแล้ว)');
+        return;
+      }
+      // Update local session
+      const user = getCurrentUser();
+      setSession({ ...user, ...updates });
+      
+      // Update local profile state
+      setProfile(prev => ({ ...prev, ...updates }));
+      window.dispatchEvent(new Event('authChange'));
+    }
+
     const updates = {
       displayName: basicInfoForm.displayName?.trim() || '',
       jobTitle: basicInfoForm.jobTitle?.trim() || '',
@@ -651,6 +680,7 @@ function MyProfile() {
       setProfileFromRecord(updated);
       setContactForm(prev => ({ ...prev, tagline: updates.tagline }));
       setShowBasicsModal(false);
+      toast.success('อัปเดตข้อมูลสำเร็จ');
     }
   };
 
@@ -1995,6 +2025,33 @@ function MyProfile() {
                 </div>
               </div>
             </div>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Username (ใช้เป็น URL โปรไฟล์ของคุณ)</Form.Label>
+              <InputGroup>
+                <InputGroup.Text>vere.me/</InputGroup.Text>
+                <Form.Control
+                  value={basicInfoForm.username}
+                  onChange={(e) => setBasicInfoForm(prev => ({ ...prev, username: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '') }))}
+                  placeholder="username"
+                  required
+                />
+              </InputGroup>
+              <Form.Text className="text-muted">
+                ระวัง: การเปลี่ยน Username จะทำให้ลิงก์โปรไฟล์เดิมใช้งานไม่ได้
+              </Form.Text>
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Email</Form.Label>
+              <Form.Control
+                type="email"
+                value={basicInfoForm.email}
+                onChange={(e) => setBasicInfoForm(prev => ({ ...prev, email: e.target.value }))}
+                placeholder="your-email@example.com"
+                required
+              />
+            </Form.Group>
 
             <Form.Group className="mb-3">
               <Form.Label>{t('display_name', { defaultValue: 'Display name' })}</Form.Label>

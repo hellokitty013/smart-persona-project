@@ -57,6 +57,7 @@ export async function loginWithPassword(identifier, password) {
 
     // บันทึก session
     setSession({ 
+      id: profileData.id,
       username: profileData.username, 
       email: profileData.email, 
       token: 'local_token_' + Date.now(),
@@ -82,13 +83,11 @@ export async function loginWithPassword(identifier, password) {
 
 export async function getUsers() {
   try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id, username, full_name, avatar_url, website, role, created_at');
-    if (error) { console.error('getUsers:', error); return []; }
+    const res = await fetch('http://localhost:5000/api/users');
+    const data = await res.json();
     return data || [];
   } catch (error) {
-    console.error(error);
+    console.error('getUsers:', error);
     return [];
   }
 }
@@ -118,6 +117,7 @@ export async function registerUser({ username, email, password, firstName, lastN
     // Set session
     const role = result.user?.role || 'user';
     setSession({
+      id: result.user.id,
       username: result.user.username,
       email: result.user.email,
       token: 'local_token_' + Date.now(),
@@ -201,7 +201,7 @@ export async function login(identifier, password) {
         // ถ้ามี error ให้ใช้ role default เป็น user
       }
       
-      setSession({ username, email: user.email, token: user.aud, role });
+      setSession({ id: user.id, username, email: user.email, token: user.aud, role });
       writeJSON(PROFILE_KEY, { 
         username, 
         firstName: user.user_metadata?.firstName || '', 
@@ -233,32 +233,20 @@ export async function isAdmin() {
 }
 
 export async function promoteUserToAdmin(username) {
-  try {
-    const { error } = await supabase
-      .from('profiles')
-      .update({ role: 'admin' })
-      .eq('username', username);
-    return !error;
-  } catch { return false; }
+  return await updateUser(username, { role: 'admin' });
 }
 
 export async function demoteAdminToUser(username) {
-  try {
-    const { error } = await supabase
-      .from('profiles')
-      .update({ role: 'user' })
-      .eq('username', username);
-    return !error;
-  } catch { return false; }
+  return await updateUser(username, { role: 'user' });
 }
 
 export async function deleteUser(username) {
   try {
-    const { error } = await supabase
-      .from('profiles')
-      .delete()
-      .eq('username', username);
-    return !error;
+    const res = await fetch(`http://localhost:5000/api/users/${username}`, {
+      method: 'DELETE'
+    });
+    const result = await res.json();
+    return result.ok;
   } catch { return false; }
 }
 
@@ -285,17 +273,12 @@ export async function impersonateUser(username) {
 
 export async function updateUser(username, updates) {
   try {
-    const mapped = {};
-    if (updates.role !== undefined) mapped.role = updates.role;
-    if (updates.firstName !== undefined) mapped.first_name = updates.firstName;
-    if (updates.lastName !== undefined) mapped.last_name = updates.lastName;
-    if (updates.full_name !== undefined) mapped.full_name = updates.full_name;
-    if (updates.avatar_url !== undefined) mapped.avatar_url = updates.avatar_url;
-
-    const { error } = await supabase
-      .from('profiles')
-      .update(mapped)
-      .eq('username', username);
-    return !error;
+    const res = await fetch(`http://localhost:5000/api/users/${username}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates)
+    });
+    const result = await res.json();
+    return result.ok;
   } catch { return false; }
 }

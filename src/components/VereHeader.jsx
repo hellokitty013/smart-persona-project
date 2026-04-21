@@ -165,7 +165,12 @@ function VereHeader() {
                 <Dropdown.Menu className="border-0 shadow-lg rounded-4 mt-3 p-3" style={{ minWidth: '220px' }}>
                   <div className="text-center mb-3">
                     <small className="text-muted d-block mb-1">Signed in as</small>
-                    <strong className="d-block text-dark fs-6">{current.username}</strong>
+                    <strong className="d-block text-dark fs-6">
+                      {(() => {
+                        const profile = JSON.parse(localStorage.getItem('user_profile') || '{}');
+                        return profile.full_name || profile.displayName || current.username;
+                      })()}
+                    </strong>
                   </div>
                   <Dropdown.Divider />
                   <Button variant="light" className="w-100 text-danger fw-bold rounded-pill mt-2" onClick={handleLogout}>
