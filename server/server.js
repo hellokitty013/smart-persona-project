@@ -543,31 +543,35 @@ app.post('/api/auth/register', async (req, res) => {
 
   try {
     const db = await readDb();
-    
-    // First check Supabase to avoid orphaned local entries
     const supabase = await getSupabaseAdmin();
 
-    // Check if exists in Supabase
-    const { data: supabaseUser } = await supabase
+    // Check duplicate username in profiles table
+    const { data: existingProfile } = await supabase
       .from('profiles')
       .select('id')
-      .or(`username.eq.${username},email.eq.${email}`)
+      .eq('username', username)
       .maybeSingle();
 
-    if (supabaseUser) {
-      return res.status(400).json({ ok: false, message: 'Username or email already taken in system' });
+    if (existingProfile) {
+      return res.status(400).json({ ok: false, message: 'Username already taken' });
     }
 
-    // If not in Supabase but in local, clean up local (orphaned entry)
-    const orphanedIdx = db.users.findIndex(u => u.username === username || u.email === email);
-    if (orphanedIdx !== -1) {
-      db.users.splice(orphanedIdx, 1);
-      await writeDb(db);
+    // Create real Supabase Auth user so auth.users has the ID (required by FK on profile_cards)
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { username, full_name: `${firstName || username} ${lastName || ''}`.trim() }
+    });
+
+    if (authError) {
+      console.error('Supabase auth.admin.createUser error:', authError.message);
+      return res.status(400).json({ ok: false, message: authError.message });
     }
 
-    const { randomUUID } = await import('crypto');
-    const supabaseId = randomUUID();
+    const supabaseId = authData.user.id;
     const token = Math.random().toString(36).slice(2);
+
     const newUser = {
       id: supabaseId,
       username,
@@ -582,28 +586,28 @@ app.post('/api/auth/register', async (req, res) => {
     };
 
     // Save to local DB
+    // Clean up orphaned local entry first
+    const orphanedIdx = db.users.findIndex(u => u.username === username || u.email === email);
+    if (orphanedIdx !== -1) db.users.splice(orphanedIdx, 1);
     db.users.push(newUser);
     await writeDb(db);
 
-    // Also save to Supabase profiles table
-    const { error: supabaseError } = await supabase
+    // Save to Supabase profiles table using real auth user ID
+    const { error: profileError } = await supabase
       .from('profiles')
       .insert([{
         id: supabaseId,
         username,
         email,
-        password,
-        full_name: `${firstName || ''} ${lastName || ''}`.trim(),
+        full_name: `${firstName || username} ${lastName || ''}`.trim(),
         role: 'user',
         created_at: new Date().toISOString()
       }]);
 
-    if (supabaseError) {
-      console.warn('Supabase insert warning:', supabaseError.message);
-      // Still return success if saved locally
+    if (profileError) {
+      console.warn('Supabase profiles insert warning:', profileError.message);
     }
 
-    // Don't send password back in response
     const { password: _, ...userWithoutPassword } = newUser;
     res.status(201).json({ ok: true, user: userWithoutPassword });
   } catch (error) {
@@ -1370,14 +1374,14 @@ app.patch('/api/profiles/by-id/:id', async (req, res) => {
           .eq('username', current.username);
 
         // Also update local db.json
-        const dbRaw = fs.readFileSync(DB_PATH, 'utf8');
+        const dbRaw = fs.readFileSync(dbPath, 'utf8');
         const db = JSON.parse(dbRaw);
         const userIndex = db.users.findIndex(u => u.username === current.username);
         if (userIndex !== -1) {
           db.users[userIndex].fullName = fullName;
           db.users[userIndex].firstName = fullName;
           db.users[userIndex].lastName = '';
-          fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
+          fs.writeFileSync(dbPath, JSON.stringify(db, null, 2));
         }
       } catch (syncErr) {
         console.error('Failed to sync displayName to profiles:', syncErr);

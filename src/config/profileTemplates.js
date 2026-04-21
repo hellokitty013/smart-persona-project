@@ -108,7 +108,7 @@ export const profileTemplates = {
 
 // Helper function to get template by type
 export const getTemplateByType = (type) => {
-  return profileTemplates[type] || profileTemplates.personal
+  return profileTemplates[type] || profileTemplates.vtree
 }
 
 // Helper function to apply template to profile data
@@ -124,11 +124,13 @@ export const applyTemplate = (type, existingData = {}) => {
   }
 }
 
-// Get all available profile types
+// Get all available profile types (Personal removed)
 export const getProfileTypes = () =>
-  Object.entries(profileTemplates).map(([key, template]) => ({
-    key,
-    value: key,
-    type: key,
-    ...template
-  }))
+  Object.entries(profileTemplates)
+    .filter(([key]) => key !== 'personal')
+    .map(([key, template]) => ({
+      key,
+      value: key,
+      type: key,
+      ...template
+    }))
